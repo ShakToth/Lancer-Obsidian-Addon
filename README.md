@@ -7,24 +7,24 @@
 
 ## 🚀 Features
 
-### 1. Glossary & Status Tooltips (New in M3)
+### 1. Glossary & Status Tooltips
 Never look up status effects during combat again. The plugin automatically scans your notes for official Lancer keywords (e.g., `PRONE`, `STUNNED`, `SHREDDED`, `INVISIBLE`).
 - Keywords are subtly highlighted in Reading View.
 - **Hover** over them to instantly see the full rule definition in a slick UNION_OS tooltip!
 
-### 2. Integrated Dice Roller (New in M1)
+### 2. Integrated Dice Roller
 Roll dice directly inside your notes without switching to another app.
 - Syntax: `[Roll: 1d20+2]` or `[Roll: 2d6]`
 - Click the button to roll, and the result (and math) is displayed inline instantly.
 
-### 3. Advanced Encounter & Combat Tracker (New in M1)
+### 3. Advanced Encounter & Combat Tracker
 A dedicated right-sidebar view that tracks all characters in your scene and manages initiative.
 - **Roster & Initiative Tabs:** Organize characters before combat, then switch to Initiative when lasers start flying.
 - **Combat Controls:** Top-level `Start Combat`, `Stop Combat`, and `Next Turn` buttons.
 - **Active Turn Highlighting:** The current acting character's card is highlighted in bright orange.
 - **Auto-Detection:** Simply link to a character note in your current file (e.g., `[[Commander Smith]]`), and the tracker pulls their stats automatically.
 
-### 4. Automated PC & NPC Importers (New in M2 & M3)
+### 4. Automated PC & NPC Importers
 Bridging the gap between COMP/CON and Obsidian with powerful data extractors.
 - **NPC LCP Importer:** Upload `.lcp` files to extract all NPC classes and abilities.
 - **PC JSON Importer:** Upload your players' COMP/CON Pilot exports (`.json`). Automatically extracts their active Mech, Weapons, Systems, Licenses, Talents, and Lore!
