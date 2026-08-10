@@ -63,7 +63,7 @@ def main():
                             effect = effect[:297] + "..."
                         features_markdown += f"- **{f_name}** ({f_type})\n  - {effect}\n"
 
-            content = f"""---
+            fallback_content = f"""---
 tags:
   - NPC_Class
 HP: {hp}
@@ -75,7 +75,39 @@ Sensor Range: {sensors}
 ---
 # {name}
 
-```lancer-stats
+{{{{LANCER_STATS}}}}
+
+*(Diese Notiz wurde automatisch aus einer LCP-Datei extrahiert.)*
+
+---
+**Index:** [[Index_Feind_Statblocks]]
+"""
+            template_path = os.path.join(vault_path, "99_TEMPLATES", "TEMPLATE_NPC.md")
+            template_text = fallback_content
+            if os.path.exists(template_path):
+                with open(template_path, "r", encoding="utf-8") as tf:
+                    template_text = tf.read()
+                
+                # Merge YAML
+                yaml_regex = re.compile(r"^---\n([\s\S]*?)\n---")
+                match = yaml_regex.search(template_text)
+                merged_yaml = f"""---
+tags:
+  - NPC_Class
+HP: {hp}
+Armor: {armor}
+Evasion: {evasion}
+E-Defense: {edef}
+Speed: {speed}
+Sensor Range: {sensors}
+"""
+                if match:
+                    merged_yaml = f"---\n{match.group(1)}\nHP: {hp}\nArmor: {armor}\nEvasion: {evasion}\nE-Defense: {edef}\nSpeed: {speed}\nSensor Range: {sensors}\n---"
+                    template_text = yaml_regex.sub(merged_yaml, template_text, 1)
+                else:
+                    template_text = merged_yaml + "---\n" + template_text
+
+            stats_block = f"""```lancer-stats
 🤖 Basis-Stats
 HP: {hp}
 Armor: {armor}
@@ -84,13 +116,17 @@ E-Defense: {edef}
 Speed: {speed}
 Sensor Range: {sensors}
 ```
-{features_markdown}
+{features_markdown}"""
 
-*(Diese Notiz wurde automatisch aus einer LCP-Datei extrahiert.)*
-
----
-**Index:** [[Index_Feind_Statblocks]]
-"""
+            content = template_text
+            if "{{LANCER_STATS}}" in content:
+                content = content.replace("{{LANCER_STATS}}", stats_block)
+            else:
+                content += "\n\n" + stats_block
+            # Support Obsidian templater fallback
+            content = content.replace("<% tp.file.title %>", name)
+            content = content.replace("{{name}}", name)
+            
             file_path = os.path.join(target_dir, f"{name.replace('/', '_').replace(':', '')}.md")
             with open(file_path, "w", encoding="utf-8") as file:
                 file.write(content)

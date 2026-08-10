@@ -1,7 +1,81 @@
-const { Plugin, Notice, ItemView, WorkspaceLeaf } = require('obsidian');
-const { exec } = require('child_process');
-const path = require('path');
+const { Plugin, ItemView, WorkspaceLeaf, Notice, MarkdownPostProcessorContext, Platform } = require('obsidian');
 const fs = require('fs');
+
+// ==========================================
+// FEATURE: Glossary Tooltips
+// ==========================================
+class GlossaryFeature {
+    constructor(plugin) {
+        this.plugin = plugin;
+        this.glossary = {
+            "PRONE": "Attacks against Prone targets gain +1 Accuracy.\nProne targets are Slowed.\nGetting up costs a standard move.",
+            "STUNNED": "Cannot act, overcharge, or move. Max evasion 5.\nAttacks against Stunned gain +1 Accuracy.",
+            "SHREDDED": "Armor does not reduce damage.\nCannot benefit from Resistance.",
+            "IMPAIRED": "+1 Difficulty on all attacks, saves, and skill checks.",
+            "SLOWED": "Cannot boost.\nCan only move standard Speed.",
+            "IMMOBILIZED": "Cannot move voluntarily.",
+            "JAMMED": "Cannot use comms, make Tech Attacks, or make attacks with anything other than Melee or Improvised weapons.",
+            "HIDDEN": "Cannot be targeted by attacks or effects unless they are AoE.\nRevealed if you attack, force a save, or take damage.",
+            "INVISIBLE": "All attacks against you have a 50% chance to miss before rolling.",
+            "DANGER ZONE": "Heat is at least half of Heat Capacity.",
+            "ENGAGED": "Adjacent to a hostile character.\nRanged attacks gain +1 Difficulty."
+        };
+    }
+
+    load() {
+        this.plugin.registerMarkdownPostProcessor((element, context) => {
+            const textNodes = this.getTextNodes(element);
+            const terms = Object.keys(this.glossary);
+            const regexStr = "\\b(" + terms.join("|") + ")\\b";
+            const regex = new RegExp(regexStr, "g");
+            
+            for (let node of textNodes) {
+                let match;
+                let lastIndex = 0;
+                let fragments = [];
+                
+                while ((match = regex.exec(node.nodeValue)) !== null) {
+                    if (match.index > lastIndex) {
+                        fragments.push(document.createTextNode(node.nodeValue.substring(lastIndex, match.index)));
+                    }
+                    
+                    const term = match[1];
+                    const span = document.createElement("span");
+                    span.className = "lancer-tooltip";
+                    span.innerText = term;
+                    span.setAttribute("data-tooltip", this.glossary[term]);
+                    
+                    fragments.push(span);
+                    lastIndex = regex.lastIndex;
+                }
+                
+                if (fragments.length > 0) {
+                    if (lastIndex < node.nodeValue.length) {
+                        fragments.push(document.createTextNode(node.nodeValue.substring(lastIndex)));
+                    }
+                    const parent = node.parentNode;
+                    if (parent) {
+                        fragments.forEach(f => parent.insertBefore(f, node));
+                        parent.removeChild(node);
+                    }
+                }
+            }
+        });
+    }
+
+    getTextNodes(element) {
+        const textNodes = [];
+        const walk = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
+        let node;
+        while (node = walk.nextNode()) {
+            const parentTag = node.parentElement ? node.parentElement.tagName : '';
+            if (parentTag === 'CODE' || parentTag === 'PRE' || parentTag === 'H1' || parentTag === 'H2' || parentTag === 'H3' || parentTag === 'H4' || parentTag === 'A') continue;
+            if (node.parentElement && node.parentElement.classList.contains('lancer-tooltip')) continue;
+            textNodes.push(node);
+        }
+        return textNodes;
+    }
+}
 
 // ==========================================
 // FEATURE: Lancer Clocks & Bars
@@ -120,8 +194,10 @@ class ClocksFeature {
                         fragments.push(document.createTextNode(node.nodeValue.substring(lastIndex)));
                     }
                     const parent = node.parentNode;
-                    fragments.forEach(f => parent.insertBefore(f, node));
-                    parent.removeChild(node);
+                    if (parent) {
+                        fragments.forEach(f => parent.insertBefore(f, node));
+                        parent.removeChild(node);
+                    }
                 }
             }
         });
@@ -242,6 +318,390 @@ class ClocksFeature {
         }
 
         return container;
+    }
+}
+
+// ==========================================
+// FEATURE: Dice Roller
+// ==========================================
+class DiceRollerFeature {
+    constructor(plugin) {
+        this.plugin = plugin;
+    }
+
+    load() {
+        this.plugin.registerMarkdownPostProcessor((element, context) => {
+            const textNodes = this.getTextNodes(element);
+            
+            for (let node of textNodes) {
+                const regex = /\[Roll:\s*([^\]]+)\]/gi;
+                let match;
+                let lastIndex = 0;
+                let fragments = [];
+                
+                while ((match = regex.exec(node.nodeValue)) !== null) {
+                    if (match.index > lastIndex) {
+                        fragments.push(document.createTextNode(node.nodeValue.substring(lastIndex, match.index)));
+                    }
+                    
+                    const formula = match[1].trim();
+                    const container = document.createElement("span");
+                    container.style.display = "inline-flex";
+                    container.style.alignItems = "center";
+                    container.style.gap = "6px";
+                    
+                    const btn = document.createElement("button");
+                    btn.innerText = `🎲 ${formula}`;
+                    btn.className = "lancer-dice-button";
+                    btn.style.cursor = "pointer";
+                    btn.style.padding = "2px 6px";
+                    btn.style.fontSize = "0.9em";
+                    btn.style.backgroundColor = "var(--background-secondary)";
+                    btn.style.border = "1px solid var(--text-accent)";
+                    btn.style.color = "var(--text-accent)";
+                    btn.style.borderRadius = "4px";
+                    
+                    const resSpan = document.createElement("span");
+                    resSpan.className = "lancer-dice-result";
+                    resSpan.style.fontWeight = "bold";
+                    resSpan.style.color = "var(--text-normal)";
+                    resSpan.style.fontSize = "0.95em";
+                    
+                    btn.onclick = () => {
+                        const total = this.rollDice(formula);
+                        if (total !== null) {
+                            resSpan.innerText = `= ${total}`;
+                            resSpan.style.color = "var(--text-accent)";
+                        }
+                    };
+                    
+                    container.appendChild(btn);
+                    container.appendChild(resSpan);
+                    fragments.push(container);
+                    lastIndex = regex.lastIndex;
+                }
+                
+                if (fragments.length > 0) {
+                    if (lastIndex < node.nodeValue.length) {
+                        fragments.push(document.createTextNode(node.nodeValue.substring(lastIndex)));
+                    }
+                    const parent = node.parentNode;
+                    if (parent) {
+                        fragments.forEach(f => parent.insertBefore(f, node));
+                        parent.removeChild(node);
+                    }
+                }
+            }
+        });
+    }
+
+    getTextNodes(element) {
+        const textNodes = [];
+        const walk = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
+        let node;
+        while (node = walk.nextNode()) {
+            const parentTag = node.parentElement ? node.parentElement.tagName : '';
+            if (parentTag === 'CODE' || parentTag === 'PRE') continue;
+            textNodes.push(node);
+        }
+        return textNodes;
+    }
+
+    rollDice(formula) {
+        const parts = formula.toLowerCase().replace(/\s+/g, '').match(/^(\d+)d(\d+)(?:([+-])(\d+))?$/);
+        if (!parts) {
+            new Notice(`Invalid Roll Formula: ${formula}. Try '1d20+2' or '2d6'.`);
+            return null;
+        }
+        
+        const count = parseInt(parts[1]);
+        const faces = parseInt(parts[2]);
+        const modSign = parts[3];
+        const modVal = parseInt(parts[4]);
+        
+        let total = 0;
+        let rolls = [];
+        for(let i=0; i<count; i++) {
+            const r = Math.floor(Math.random() * faces) + 1;
+            rolls.push(r);
+            total += r;
+        }
+        
+        let resStr = `[${rolls.join(', ')}]`;
+        if (modSign && !isNaN(modVal)) {
+            if (modSign === '+') total += modVal;
+            if (modSign === '-') total -= modVal;
+            resStr += ` ${modSign} ${modVal}`;
+        }
+        
+        const noticeEl = document.createDocumentFragment();
+        const header = document.createElement('div');
+        header.style.color = 'var(--text-accent)';
+        header.style.fontWeight = 'bold';
+        header.style.marginBottom = '5px';
+        header.innerText = 'UNION_OS // COMBAT LOG';
+        
+        const res = document.createElement('div');
+        res.innerHTML = `Rolling <b>${formula}</b><br/>Result: ${resStr} = <b style="font-size:1.2em;color:white;">${total}</b>`;
+        
+        noticeEl.appendChild(header);
+        noticeEl.appendChild(res);
+        
+        new Notice(noticeEl, 5000);
+        return total;
+    }
+}
+
+// ==========================================
+// FEATURE: PC JSON Importer
+// ==========================================
+class PcImporterFeature {
+    constructor(plugin) {
+        this.plugin = plugin;
+    }
+
+    load() {
+        this.plugin.addCommand({
+            id: 'import-pc-json',
+            name: 'Import Player Character (JSON)',
+            callback: () => this.importPcJson()
+        });
+        
+        this.plugin.addRibbonIcon('user', 'Import Player JSON', () => {
+            this.importPcJson();
+        });
+    }
+
+    importPcJson() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = async (evt) => {
+                try {
+                    const rawText = evt.target.result;
+                    const json = JSON.parse(rawText);
+                    
+                    let pilots = [];
+                    if (json.EXPORT_TYPE === "Pilot Group") {
+                        const parsedData = JSON.parse(json.data);
+                        pilots = parsedData.pilotData || [];
+                    } else if (json.EXPORT_TYPE === "Save Pilot") {
+                        if (typeof json.data === 'string') {
+                            pilots = [JSON.parse(json.data)];
+                        } else {
+                            pilots = [json.data];
+                        }
+                    } else {
+                        new Notice("Unbekanntes JSON Format.");
+                        return;
+                    }
+                    
+                    for (let pilot of pilots) {
+                        if (pilot.itemType === 'pilot') {
+                            await this.createPilotNote(pilot);
+                        }
+                    }
+                    new Notice(`Erfolgreich ${pilots.length} Spieler importiert!`);
+                    
+                } catch (error) {
+                    console.error(error);
+                    new Notice("Fehler beim Parsen der JSON-Datei.");
+                }
+            };
+            reader.readAsText(file);
+        };
+        input.click();
+    }
+    
+    async createPilotNote(pilot) {
+        const callsign = pilot.callsign || pilot.name || "Unknown";
+        const filename = `PC_${callsign.replace(/[^a-z0-9]/gi, '_')}.md`;
+        
+        let mechName = "Unknown Mech";
+        let frameName = "Unknown Frame";
+        let hp = 0, armor = 0, evasion = 0, edef = 0, speed = 0, sensor = 0;
+        let mechWeapons = [];
+        let mechSystems = [];
+        let pilotWeapons = [];
+        let pilotGear = [];
+        
+        const formatId = (id) => {
+            if (!id) return "Unknown";
+            return id.replace(/^(t_|mw_|ms_|pg_|mf_|sk_)/, '')
+                     .split('_')
+                     .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                     .join(' ');
+        };
+
+        if (pilot.mechs && pilot.mechs.length > 0) {
+            const activeMech = pilot.mechs[pilot.active_index || 0] || pilot.mechs[0];
+            mechName = activeMech.name || mechName;
+            if (activeMech.frameData) {
+                frameName = activeMech.frameData.name || frameName;
+            } else if (activeMech.frame) {
+                frameName = formatId(activeMech.frame);
+            }
+            
+            // Extract Mech Loadout
+            if (activeMech.loadouts && activeMech.loadouts.length > 0) {
+                const loadout = activeMech.loadouts[activeMech.active_loadout_index || 0] || activeMech.loadouts[0];
+                if (loadout.mounts) {
+                    loadout.mounts.forEach(m => {
+                        if (m.slots) {
+                            m.slots.forEach(s => {
+                                if (s.weapon) {
+                                    mechWeapons.push({
+                                        mount: m.mount_type,
+                                        name: s.weapon.data?.name || formatId(s.weapon.id)
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+                if (loadout.systems) {
+                    loadout.systems.forEach(sys => {
+                        mechSystems.push(sys.data?.name || formatId(sys.id));
+                    });
+                }
+            }
+        }
+        
+        if (pilot.stats && pilot.stats.max) {
+            hp = pilot.stats.max.hp || hp;
+            armor = pilot.stats.max.armor || armor;
+            evasion = pilot.stats.max.evasion || evasion;
+            edef = pilot.stats.max.edef || edef;
+            speed = pilot.stats.max.speed || speed;
+            sensor = pilot.stats.max.sensorRange || 0;
+        }
+
+        // Extract Pilot Loadout
+        if (pilot.loadout) {
+            if (pilot.loadout.weapons) {
+                pilot.loadout.weapons.forEach(w => pilotWeapons.push(w.data?.name || formatId(w.id)));
+            }
+            if (pilot.loadout.gear) {
+                pilot.loadout.gear.forEach(g => pilotGear.push(g.data?.name || formatId(g.id)));
+            }
+        }
+        
+        let fallbackContent = `---
+tags:
+  - PC
+callsign: "${pilot.callsign}"
+name: "${pilot.name}"
+player: "${pilot.player_name || ''}"
+background: "${pilot.background || ''}"
+hp: ${hp}
+armor: ${armor}
+evasion: ${evasion}
+edef: ${edef}
+speed: ${speed}
+sensor: ${sensor}
+---
+# ${callsign.toUpperCase()} (${pilot.name})
+
+**Player:** ${pilot.player_name || 'N/A'} | **Background:** ${pilot.background || 'N/A'}
+
+## Active Mech: ${mechName} (${frameName})
+
+{{LANCER_STATS}}
+
+## Lore & Notes\n`;
+        if (pilot.text_appearance) fallbackContent += `### Appearance\n${pilot.text_appearance}\n\n`;
+        if (pilot.history) fallbackContent += `### History\n${pilot.history}\n\n`;
+        if (pilot.notes) fallbackContent += `### Pilot Notes\n${pilot.notes}\n\n`;
+
+        let templateText = fallbackContent;
+        const templateFile = this.plugin.app.metadataCache.getFirstLinkpathDest("TEMPLATE_PC", "");
+        if (templateFile) {
+            templateText = await this.plugin.app.vault.read(templateFile);
+            
+            // Merge YAML Frontmatter
+            const yamlRegex = /^---\n([\s\S]*?)\n---/;
+            const match = templateText.match(yamlRegex);
+            let mergedYaml = `---
+tags:
+  - PC
+callsign: "${pilot.callsign}"
+name: "${pilot.name}"
+hp: ${hp}
+armor: ${armor}
+evasion: ${evasion}
+edef: ${edef}
+speed: ${speed}
+sensor: ${sensor}
+`;
+            if (match) {
+                // Keep the template's YAML, just append our stats
+                mergedYaml = `---\n${match[1]}\ncallsign: "${pilot.callsign}"\nname: "${pilot.name}"\nhp: ${hp}\narmor: ${armor}\nevasion: ${evasion}\nedef: ${edef}\nspeed: ${speed}\nsensor: ${sensor}\n---`;
+                templateText = templateText.replace(yamlRegex, mergedYaml);
+            } else {
+                templateText = mergedYaml + "---" + "\n" + templateText;
+            }
+        }
+
+        // Generate the LANCER_STATS block
+        let statsBlock = `\`\`\`lancer-stats
+🤖 Mech-Stats
+HP: ${hp}
+Armor: ${armor}
+Evasion: ${evasion}
+E-Defense: ${edef}
+Speed: ${speed}
+Sensor Range: ${sensor}
+\`\`\`
+
+### Mech Loadout
+**Weapons:**
+${mechWeapons.length > 0 ? mechWeapons.map(w => `- [${w.mount}] ${w.name}`).join("\n") : "- None"}
+
+**Systems:**
+${mechSystems.length > 0 ? mechSystems.map(s => `- ${s}`).join("\n") : "- None"}
+
+### Pilot Loadout
+**Weapons:** ${pilotWeapons.length > 0 ? pilotWeapons.join(", ") : "None"}
+**Gear:** ${pilotGear.length > 0 ? pilotGear.join(", ") : "None"}
+
+## Licenses & Talents
+`;
+        if (pilot.licenses && pilot.licenses.length > 0) {
+            statsBlock += "**Licenses:**\n" + pilot.licenses.map(l => `- ${l.stub?.name || formatId(l.id)} (Rank ${l.rank})`).join("\n") + "\n\n";
+        }
+        if (pilot.talents && pilot.talents.length > 0) {
+            statsBlock += "**Talents:**\n" + pilot.talents.map(t => `- ${t.data?.name || formatId(t.id)} (Rank ${t.rank})`).join("\n") + "\n\n";
+        }
+        
+        if (pilot.mechs && pilot.mechs.length > 0) {
+            const activeMech = pilot.mechs[pilot.active_index || 0] || pilot.mechs[0];
+            if (activeMech.notes) {
+                statsBlock += `### Mech Notes (${mechName})\n${activeMech.notes}\n\n`;
+            }
+        }
+
+        let content = templateText;
+        if (content.includes("{{LANCER_STATS}}")) {
+            content = content.replace("{{LANCER_STATS}}", statsBlock);
+        } else {
+            content += "\n\n" + statsBlock;
+        }
+        
+        // Also auto-replace {{name}} and {{callsign}} if the template uses them instead of Templater
+        content = content.replace(/{{name}}/gi, pilot.name);
+        content = content.replace(/{{callsign}}/gi, pilot.callsign);
+
+        const existing = this.plugin.app.metadataCache.getFirstLinkpathDest(filename, "");
+        if (existing) {
+            await this.plugin.app.vault.modify(existing, content);
+        } else {
+            await this.plugin.app.vault.create(filename, content);
+        }
     }
 }
 
@@ -457,7 +917,13 @@ class EncounterTrackerView extends ItemView {
     constructor(leaf, plugin) {
         super(leaf);
         this.plugin = plugin;
-        this.selectedTiers = {}; // Stores { basename: tierIndex }
+        this.selectedTiers = {}; // { basename: tierIndex }
+        this.combatants = []; // array of basenames
+        
+        // New State for Tabbed & Foundry VTT Style Combat
+        this.activeTab = 'roster'; // 'roster' or 'initiative'
+        this.isCombatActive = false;
+        this.turnIndex = 0; // index in this.combatants
     }
 
     getViewType() {
@@ -481,6 +947,14 @@ class EncounterTrackerView extends ItemView {
         header.style.textTransform = "uppercase";
         header.style.borderBottom = "1px solid var(--text-muted)";
         header.style.paddingBottom = "5px";
+        header.style.marginBottom = "5px";
+        
+        // Tab Navigation
+        this.tabNav = container.createEl("div");
+        this.tabNav.style.display = "flex";
+        this.tabNav.style.gap = "5px";
+        this.tabNav.style.marginBottom = "15px";
+        this.tabNav.style.borderBottom = "1px solid var(--background-modifier-border)";
         
         this.contentEl = container.createEl("div");
         this.contentEl.className = "lancer-tracker-content";
@@ -492,8 +966,42 @@ class EncounterTrackerView extends ItemView {
         // Cleanup if needed
     }
 
+    renderTabNavigation(currentFile) {
+        this.tabNav.empty();
+        
+        const btnRoster = this.tabNav.createEl("button", { text: "ROSTER" });
+        const btnInit = this.tabNav.createEl("button", { text: "INITIATIVE" });
+        
+        const styleTab = (btn, isActive) => {
+            btn.style.flex = "1";
+            btn.style.padding = "5px";
+            btn.style.cursor = "pointer";
+            btn.style.border = "none";
+            btn.style.borderBottom = isActive ? "2px solid var(--text-accent)" : "2px solid transparent";
+            btn.style.backgroundColor = isActive ? "var(--background-secondary-alt)" : "transparent";
+            btn.style.color = isActive ? "var(--text-accent)" : "var(--text-muted)";
+            btn.style.fontWeight = "bold";
+            btn.style.borderRadius = "0";
+        };
+        
+        styleTab(btnRoster, this.activeTab === 'roster');
+        styleTab(btnInit, this.activeTab === 'initiative');
+        
+        btnRoster.onclick = () => {
+            this.activeTab = 'roster';
+            this.updateView(currentFile);
+        };
+        
+        btnInit.onclick = () => {
+            this.activeTab = 'initiative';
+            this.updateView(currentFile);
+        };
+    }
+
     async updateView(file) {
         if (!this.contentEl) return;
+        
+        this.renderTabNavigation(file);
         this.contentEl.empty();
         
         if (!file) {
@@ -507,11 +1015,7 @@ class EncounterTrackerView extends ItemView {
             return;
         }
 
-        let combatNpcs = [];
-        let storyNpcs = [];
-        
         const uniqueLinks = new Map();
-        
         for (let l of cache.links) {
             const basename = l.link.split('#')[0];
             const hash = l.link.split('#')[1];
@@ -519,6 +1023,8 @@ class EncounterTrackerView extends ItemView {
                 uniqueLinks.set(basename, hash);
             }
         }
+
+        let allNpcs = {};
 
         for (let [basename, hash] of uniqueLinks.entries()) {
             const linkedFile = this.plugin.app.metadataCache.getFirstLinkpathDest(basename, file.path);
@@ -530,7 +1036,6 @@ class EncounterTrackerView extends ItemView {
             const fm = linkedCache.frontmatter;
             const tags = fm.tags || [];
             
-            // Check hash for Tier preference (e.g. [[BASTION#T2]])
             if (hash) {
                 const upperHash = hash.toUpperCase();
                 if (upperHash === "T1") this.selectedTiers[linkedFile.basename] = 0;
@@ -538,22 +1043,62 @@ class EncounterTrackerView extends ItemView {
                 if (upperHash === "T3") this.selectedTiers[linkedFile.basename] = 2;
             }
             
-            // Determine if combat or story
             const hasStats = fm.HP !== undefined || fm.hp !== undefined;
             const isClass = tags.includes("NPC_Class") || tags.includes("Mech");
+            const isPC = tags.includes("PC");
             
-            if (hasStats || isClass) {
-                combatNpcs.push({ name: linkedFile.basename, fm: fm, file: linkedFile });
-            } else if (tags.includes("NPC")) {
-                storyNpcs.push({ name: linkedFile.basename, fm: fm, file: linkedFile });
+            if (hasStats || isClass || tags.includes("NPC") || isPC) {
+                allNpcs[linkedFile.basename] = {
+                    name: linkedFile.basename,
+                    fm: fm,
+                    file: linkedFile,
+                    isCombatMech: hasStats || isClass || isPC,
+                    isPC: isPC
+                };
             }
         }
 
-        if (combatNpcs.length === 0 && storyNpcs.length === 0) {
-            this.contentEl.createEl("p", { text: "Keine Charaktere in dieser Notiz erwähnt.", cls: "text-muted" });
+        // Clean up combatants list (remove deleted links)
+        this.combatants = this.combatants.filter(c => allNpcs[c]);
+        // Adjust turn index if combatants array shrank
+        if (this.turnIndex >= this.combatants.length) this.turnIndex = 0;
+
+        if (Object.keys(allNpcs).length === 0) {
+            this.contentEl.createEl("p", { text: "Keine validen NPC-Notizen gefunden.", cls: "text-muted" });
             return;
         }
-        
+
+        if (this.activeTab === 'roster') {
+            this.renderRosterTab(allNpcs, file);
+        } else {
+            this.renderInitiativeTab(allNpcs, file);
+        }
+    }
+
+    renderRosterTab(allNpcs, currentFile) {
+        let pcs = [];
+        let storyNpcs = [];
+        let combatNpcs = [];
+
+        Object.values(allNpcs).forEach(npc => {
+            if (npc.isPC) pcs.push(npc);
+            else if (npc.isCombatMech) combatNpcs.push(npc);
+            else storyNpcs.push(npc);
+        });
+
+        if (pcs.length > 0) {
+            const pcHeader = this.contentEl.createEl("div", { text: "PLAYER CHARACTERS" });
+            pcHeader.style.color = "var(--text-accent)";
+            pcHeader.style.fontWeight = "bold";
+            pcHeader.style.fontSize = "0.8em";
+            pcHeader.style.marginBottom = "8px";
+            pcHeader.style.letterSpacing = "1px";
+            
+            for (let npc of pcs) {
+                this.renderRosterCard(npc, currentFile);
+            }
+        }
+
         if (storyNpcs.length > 0) {
             const storyHeader = this.contentEl.createEl("div", { text: "STORY CHARAKTERE" });
             storyHeader.style.color = "var(--text-muted)";
@@ -563,7 +1108,7 @@ class EncounterTrackerView extends ItemView {
             storyHeader.style.letterSpacing = "1px";
             
             for (let npc of storyNpcs) {
-                this.renderStoryCard(npc.name, npc.fm, npc.file);
+                this.renderRosterCard(npc, currentFile);
             }
         }
         
@@ -577,68 +1122,204 @@ class EncounterTrackerView extends ItemView {
             combatHeader.style.letterSpacing = "1px";
             
             for (let npc of combatNpcs) {
-                this.renderMiniCard(npc.name, npc.fm, npc.file);
+                this.renderRosterCard(npc, currentFile);
             }
         }
     }
 
-    renderStoryCard(name, fm, file) {
-        const card = this.contentEl.createEl("div");
-        card.style.border = "1px solid var(--border-color)";
-        card.style.borderLeft = "3px solid var(--text-normal)";
-        card.style.backgroundColor = "var(--background-secondary)";
-        card.style.padding = "6px 10px";
-        card.style.marginBottom = "6px";
-        card.style.borderRadius = "2px";
-        card.style.display = "flex";
-        card.style.flexDirection = "column";
-        card.style.cursor = "pointer";
+    renderRosterCard(npc, currentFile) {
+        const inCombat = this.combatants.includes(npc.name);
         
-        card.onclick = () => {
-            this.plugin.app.workspace.getLeaf('tab').openFile(file);
-        };
-        card.addEventListener("mouseenter", () => card.style.backgroundColor = "var(--background-secondary-alt)");
-        card.addEventListener("mouseleave", () => card.style.backgroundColor = "var(--background-secondary)");
-
-        const title = card.createEl("div", { text: name.toUpperCase() });
+        const card = this.contentEl.createEl("div");
+        card.style.display = "flex";
+        card.style.justifyContent = "space-between";
+        card.style.alignItems = "center";
+        card.style.border = "1px solid var(--background-modifier-border)";
+        card.style.backgroundColor = "var(--background-secondary)";
+        card.style.padding = "6px 8px";
+        card.style.marginBottom = "4px";
+        
+        const leftBox = card.createEl("div");
+        
+        const title = leftBox.createEl("div", { text: npc.name });
+        title.style.fontSize = "0.9em";
         title.style.fontWeight = "bold";
-        title.style.color = "var(--text-normal)";
+        title.style.cursor = "pointer";
+        title.onclick = () => this.plugin.app.workspace.getLeaf('tab').openFile(npc.file);
         
         let details = [];
-        if (fm.fraktion) details.push(fm.fraktion);
-        if (fm.rolle) details.push(fm.rolle);
-        
+        if (npc.fm.fraktion) details.push(npc.fm.fraktion);
+        if (npc.fm.rolle) details.push(npc.fm.rolle);
         if (details.length > 0) {
-            const sub = card.createEl("div", { text: details.join(" • ") });
-            sub.style.fontSize = "0.75em";
+            const sub = leftBox.createEl("div", { text: details.join(" • ") });
+            sub.style.fontSize = "0.7em";
             sub.style.color = "var(--text-muted)";
+        }
+
+        const btnAdd = card.createEl("button", { text: inCombat ? "- Combat" : "+ Combat" });
+        btnAdd.style.padding = "2px 6px";
+        btnAdd.style.fontSize = "0.7em";
+        btnAdd.style.minWidth = "65px";
+        
+        if (inCombat) {
+            btnAdd.style.backgroundColor = "var(--background-modifier-border)";
+            btnAdd.style.color = "var(--text-muted)";
+        } else {
+            btnAdd.style.backgroundColor = "transparent";
+            btnAdd.style.color = "var(--text-accent)";
+            btnAdd.style.border = "1px solid var(--text-accent)";
+        }
+        
+        btnAdd.onclick = () => {
+            if (inCombat) {
+                this.combatants = this.combatants.filter(c => c !== npc.name);
+                if (this.turnIndex >= this.combatants.length) this.turnIndex = 0;
+            } else {
+                this.combatants.push(npc.name);
+            }
+            this.updateView(currentFile);
+        };
+    }
+
+    renderInitiativeTab(allNpcs, currentFile) {
+        if (this.combatants.length === 0) {
+            this.contentEl.createEl("p", { text: "No combatants added. Go to the Roster tab to add characters to combat.", cls: "text-muted" });
+            return;
+        }
+
+        // Global Combat Controls
+        const controlBar = this.contentEl.createEl("div");
+        controlBar.style.display = "flex";
+        controlBar.style.justifyContent = "space-between";
+        controlBar.style.gap = "10px";
+        controlBar.style.marginBottom = "15px";
+
+        const btnToggleCombat = controlBar.createEl("button", { text: this.isCombatActive ? "⏹ END COMBAT" : "▶ START COMBAT" });
+        btnToggleCombat.style.flex = "1";
+        btnToggleCombat.style.fontWeight = "bold";
+        btnToggleCombat.style.backgroundColor = this.isCombatActive ? "var(--background-secondary)" : "var(--color-red, #ff5555)";
+        btnToggleCombat.style.color = this.isCombatActive ? "var(--text-normal)" : "white";
+        
+        btnToggleCombat.onclick = () => {
+            this.isCombatActive = !this.isCombatActive;
+            if (this.isCombatActive) this.turnIndex = 0; // reset to top
+            this.updateView(currentFile);
+        };
+
+        if (this.isCombatActive) {
+            const btnNextTurn = controlBar.createEl("button", { text: "NEXT TURN ⏭" });
+            btnNextTurn.style.flex = "1";
+            btnNextTurn.style.fontWeight = "bold";
+            btnNextTurn.style.backgroundColor = "var(--text-accent)";
+            btnNextTurn.style.color = "var(--background-primary)";
+            
+            btnNextTurn.onclick = () => {
+                if (this.combatants.length > 0) {
+                    this.turnIndex = (this.turnIndex + 1) % this.combatants.length;
+                }
+                this.updateView(currentFile);
+            };
+        }
+
+        const activeCombatants = this.combatants.map(c => allNpcs[c]);
+        activeCombatants.forEach((npc, index) => {
+            if (npc) {
+                this.renderInitiativeCard(npc, index, currentFile);
+            }
+        });
+    }
+
+    renderInitiativeCard(npc, index, currentFile) {
+        const isMyTurn = this.isCombatActive && this.turnIndex === index;
+        
+        const card = this.contentEl.createEl("div");
+        card.style.position = "relative";
+        card.style.border = isMyTurn ? "2px solid var(--text-accent)" : "1px solid var(--border-color)";
+        card.style.borderLeft = isMyTurn ? "4px solid var(--text-accent)" : "3px solid var(--color-red, #ff5555)";
+        card.style.backgroundColor = isMyTurn ? "var(--background-secondary-alt)" : "var(--background-secondary)";
+        card.style.padding = "8px";
+        card.style.marginBottom = "8px";
+        card.style.borderRadius = "4px";
+        if (isMyTurn) card.style.boxShadow = "0 0 10px rgba(255, 102, 0, 0.2)";
+
+        const controlBar = card.createEl("div");
+        controlBar.style.display = "flex";
+        controlBar.style.justifyContent = "space-between";
+        controlBar.style.marginBottom = "5px";
+
+        const leftControls = controlBar.createEl("div");
+        leftControls.style.display = "flex";
+        leftControls.style.gap = "5px";
+
+        // Up/Down Arrows
+        const btnUp = leftControls.createEl("button", { text: "▲" });
+        btnUp.style.padding = "0px 6px";
+        btnUp.style.fontSize = "0.7em";
+        btnUp.onclick = () => {
+            if (index > 0) {
+                // If moving the active turn, update turnIndex
+                if (this.isCombatActive) {
+                    if (this.turnIndex === index) this.turnIndex = index - 1;
+                    else if (this.turnIndex === index - 1) this.turnIndex = index;
+                }
+                const temp = this.combatants[index - 1];
+                this.combatants[index - 1] = this.combatants[index];
+                this.combatants[index] = temp;
+                this.updateView(currentFile);
+            }
+        };
+
+        const btnDown = leftControls.createEl("button", { text: "▼" });
+        btnDown.style.padding = "0px 6px";
+        btnDown.style.fontSize = "0.7em";
+        btnDown.onclick = () => {
+            if (index < this.combatants.length - 1) {
+                if (this.isCombatActive) {
+                    if (this.turnIndex === index) this.turnIndex = index + 1;
+                    else if (this.turnIndex === index + 1) this.turnIndex = index;
+                }
+                const temp = this.combatants[index + 1];
+                this.combatants[index + 1] = this.combatants[index];
+                this.combatants[index] = temp;
+                this.updateView(currentFile);
+            }
+        };
+
+        const btnRemove = controlBar.createEl("button", { text: "✖" });
+        btnRemove.style.padding = "0px 6px";
+        btnRemove.style.fontSize = "0.7em";
+        btnRemove.style.color = "var(--text-muted)";
+        btnRemove.style.backgroundColor = "transparent";
+        btnRemove.onclick = () => {
+            this.combatants.splice(index, 1);
+            if (this.isCombatActive && this.turnIndex >= this.combatants.length) {
+                this.turnIndex = 0;
+            }
+            this.updateView(currentFile);
+        };
+
+        const title = card.createEl("div", { text: npc.name.toUpperCase() });
+        title.style.fontWeight = "bold";
+        title.style.color = "var(--text-normal)";
+        title.style.cursor = "pointer";
+        title.style.marginBottom = npc.isCombatMech ? "5px" : "0";
+        title.onclick = () => this.plugin.app.workspace.getLeaf('tab').openFile(npc.file);
+
+        if (npc.isCombatMech) {
+            this.renderMiniGrid(card, npc.name, npc.fm);
+        } else {
+            let details = [];
+            if (npc.fm.fraktion) details.push(npc.fm.fraktion);
+            if (npc.fm.rolle) details.push(npc.fm.rolle);
+            if (details.length > 0) {
+                const sub = card.createEl("div", { text: details.join(" • ") });
+                sub.style.fontSize = "0.75em";
+                sub.style.color = "var(--text-muted)";
+            }
         }
     }
 
-    renderMiniCard(name, stats, file) {
-        const card = this.contentEl.createEl("div");
-        card.style.position = "relative";
-        card.style.border = "1px solid var(--text-accent)";
-        card.style.borderTop = "3px solid var(--text-accent)";
-        card.style.backgroundColor = "var(--background-secondary)";
-        card.style.padding = "8px";
-        card.style.marginBottom = "10px";
-        card.style.borderRadius = "2px";
-        card.style.cursor = "pointer";
-        
-        card.onclick = (e) => {
-            if (e.target.tagName === 'BUTTON') return; // Don't trigger if clicking tier buttons
-            this.plugin.app.workspace.getLeaf('tab').openFile(file);
-        };
-        card.addEventListener("mouseenter", () => card.style.backgroundColor = "var(--background-secondary-alt)");
-        card.addEventListener("mouseleave", () => card.style.backgroundColor = "var(--background-secondary)");
-
-        const title = card.createEl("div", { text: name.toUpperCase() });
-        title.style.fontWeight = "bold";
-        title.style.color = "var(--text-normal)";
-        title.style.marginBottom = "5px";
-        title.style.borderBottom = "1px dashed var(--border-color)";
-        
+    renderMiniGrid(card, name, stats) {
         const grid = card.createEl("div");
         grid.style.display = "grid";
         grid.style.gridTemplateColumns = "repeat(3, 1fr)";
@@ -661,13 +1342,13 @@ class EncounterTrackerView extends ItemView {
         boxes.push(this.createStatBox(grid, "E-DEF", edefArr[currentTier] || edefArr[0]));
         boxes.push(this.createStatBox(grid, "SPD", speedArr[currentTier] || speedArr[0]));
 
-        // Check if we need Tier toggle buttons
         if (hpArr.length > 1) {
             const toggleContainer = card.createEl("div");
             toggleContainer.style.position = "absolute";
-            toggleContainer.style.top = "5px";
+            toggleContainer.style.top = "40px";
             toggleContainer.style.right = "5px";
             toggleContainer.style.display = "flex";
+            toggleContainer.style.flexDirection = "column";
             toggleContainer.style.gap = "2px";
 
             for (let i = 0; i < 3; i++) {
@@ -683,7 +1364,6 @@ class EncounterTrackerView extends ItemView {
                 btn.onclick = (e) => {
                     e.stopPropagation();
                     this.selectedTiers[name] = i;
-                    // Re-render the grid values
                     boxes[0].innerText = hpArr[i] || hpArr[0];
                     boxes[1].innerText = armorArr[i] || armorArr[0];
                     boxes[2].innerText = evaArr[i] || evaArr[0];
@@ -730,13 +1410,16 @@ module.exports = class LancerCompanionPlugin extends Plugin {
     async onload() {
         console.log("Lancer Companion Plugin loaded");
         
-        this.clocksFeature = new ClocksFeature(this);
-        this.lcpImporterFeature = new LcpImporterFeature(this);
-        this.statblockFeature = new StatblockFeature(this);
+        this.features = [
+            new GlossaryFeature(this),
+            new ClocksFeature(this),
+            new StatblockFeature(this),
+            new DiceRollerFeature(this),
+            new PcImporterFeature(this),
+            new LcpImporterFeature(this)
+        ];
 
-        this.clocksFeature.load();
-        this.lcpImporterFeature.load();
-        this.statblockFeature.load();
+        this.features.forEach(f => f.load());
 
         // Register Encounter Tracker View
         this.registerView(

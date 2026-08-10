@@ -80,3 +80,33 @@ a.internal-link {
 a.internal-link:hover {
     background-color: rgba(255, 69, 0, 0.1);
 }
+
+/* Lancer Glossary Tooltips */
+.lancer-tooltip {
+    position: relative;
+    cursor: help;
+    border-bottom: 1px dotted var(--text-accent);
+    color: var(--text-accent);
+    font-weight: bold;
+}
+
+.lancer-tooltip:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 120%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 250px;
+    padding: 10px;
+    background-color: var(--background-primary-alt);
+    color: var(--text-normal);
+    border: 1px solid var(--text-accent);
+    border-left: 3px solid var(--text-accent);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-weight: normal;
+    z-index: 1000;
+    pointer-events: none;
+    white-space: pre-wrap;
+}
