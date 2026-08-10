@@ -1,4 +1,4 @@
-# Obsidian Lancer-OS
+# Lancer Companion
 
 **Lancer-OS** is a comprehensive suite designed specifically for Game Masters running the [Lancer RPG](https://massif-press.itch.io/corebook-pdf-free) in [Obsidian](https://obsidian.md/). This is the Companion Plugin that provides powerful tracking and importing features.
 
