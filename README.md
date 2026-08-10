@@ -6,13 +6,7 @@
 
 ## 🚀 Features
 
-### 1. Lancer-OS Theme
-A custom, dark sci-fi CSS theme that completely overhauls the Obsidian UI.
-- Inspired by the iconic COMP/CON aesthetic.
-- Terminal-style fonts, neon orange accents, and dark backgrounds.
-- Headers automatically receive the "UNION_OS //" prefix.
-
-### 2. Glossary & Status Tooltips (New in M3)
+### 1. Glossary & Status Tooltips (New in M3)
 Never look up status effects during combat again. The plugin automatically scans your notes for official Lancer keywords (e.g., `PRONE`, `STUNNED`, `SHREDDED`, `INVISIBLE`).
 - Keywords are subtly highlighted in Reading View.
 - **Hover** over them to instantly see the full rule definition in a slick UNION_OS tooltip!
@@ -46,11 +40,7 @@ Create beautiful, COMP/CON style stat grids for your mechs using the `lancer-sta
 
 ## 📦 Installation
 
-### 1. Install the Theme
-1. Copy the `theme` folder contents into `<Your Vault>/.obsidian/themes/Lancer-OS`.
-2. Open Obsidian > Settings > Appearance > Themes, and select `Lancer-OS`.
-
-### 2. Install the Plugin
+### 1. Install the Plugin
 1. Copy the `plugin` folder contents into `<Your Vault>/.obsidian/plugins/lancer-companion`.
 2. Open Obsidian > Settings > Community Plugins, and enable `Lancer Companion Plugin`.
 
