@@ -3,8 +3,8 @@
   "name": "Lancer Companion",
   "version": "1.0.0",
   "minAppVersion": "0.15.0",
-  "description": "Das ultimative Lancer Tool: Importiert LCP Dateien und zeichnet Fortschritts-Uhren & Balken [Clock: Name X/Y].",
-  "author": "Antigravity",
-  "authorUrl": "",
+  "description": "The ultimate Lancer RPG suite: Encounter tracker, PC/NPC Importers, dice roller, and clocks.",
+  "author": "ShakToth",
+  "authorUrl": "https://github.com/ShakToth",
   "isDesktopOnly": true
 }
