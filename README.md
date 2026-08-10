@@ -2,8 +2,8 @@
 
 **Lancer-OS** is a comprehensive suite designed specifically for Game Masters running the [Lancer RPG](https://massif-press.itch.io/corebook-pdf-free) in [Obsidian](https://obsidian.md/). This is the Companion Plugin that provides powerful tracking and importing features.
 
-> [!NOTE] Companion Theme
-> This plugin is designed to be used alongside the **[Lancer-OS Obsidian Theme](https://github.com/ShakToth/LancerOS-Obsidian-Theme)**, which transforms your standard markdown vault into a fully functional, dark sci-fi COMP/CON style terminal!
+> [!NOTE]
+> **Companion Theme**: This plugin is designed to be used alongside the **[Lancer-OS Obsidian Theme](https://github.com/ShakToth/LancerOS-Obsidian-Theme)**, which transforms your standard markdown vault into a fully functional, dark sci-fi COMP/CON style terminal!
 
 ## 🚀 Features
 
