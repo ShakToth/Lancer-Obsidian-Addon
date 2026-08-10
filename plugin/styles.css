@@ -1,0 +1,82 @@
+/* Lancer OS Theme Snippet for Obsidian */
+body {
+    /* Fonts: Monospace for a terminal feel */
+    --font-text-theme: "Consolas", "Courier New", monospace;
+    --font-monospace-theme: "Consolas", "Courier New", monospace;
+    
+    /* Colors: Dark mode with Lancer Orange/Red accents */
+    --background-primary: #0a0a0a;
+    --background-secondary: #141414;
+    --text-normal: #dcdcdc;
+    --text-muted: #666666;
+    
+    --text-accent: #ff4500;
+    --text-accent-hover: #ff733d;
+    
+    --h1-color: #ff4500;
+    --h2-color: #ff5714;
+    --h3-color: #ff682b;
+    --h4-color: #ff7842;
+    
+    --inline-code: #ff9a6e;
+    
+    /* Dataview Table Accents */
+    --table-header-bg: #2a1107;
+    --table-header-color: #ff4500;
+}
+
+/* Header Styling - Make H1 look like a system boot */
+.markdown-preview-view h1,
+.cm-header-1 {
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    border-bottom: 2px solid var(--text-accent);
+    padding-bottom: 5px;
+    font-weight: 800;
+}
+
+.markdown-preview-view h1::before {
+    content: "UNION_OS // ";
+    color: var(--text-muted);
+    font-size: 0.5em;
+    vertical-align: middle;
+    margin-right: 10px;
+}
+
+.markdown-preview-view h2,
+.cm-header-2 {
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Dataview Tables Styling */
+.dataview.table-view-table {
+    border: 1px solid var(--text-accent);
+    border-radius: 0;
+}
+.dataview.table-view-table th {
+    background-color: var(--table-header-bg);
+    color: var(--table-header-color);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+.dataview.table-view-table td {
+    border-bottom: 1px solid #333333;
+}
+
+/* Callouts / Alerts (The quotes in templates) */
+.callout {
+    border-radius: 0 !important;
+    border-left: 4px solid var(--text-accent) !important;
+    background-color: rgba(255, 69, 0, 0.05) !important;
+    font-style: italic;
+}
+
+/* Links */
+a.internal-link {
+    text-decoration: none;
+    border-bottom: 1px dashed var(--text-accent);
+}
+a.internal-link:hover {
+    background-color: rgba(255, 69, 0, 0.1);
+}

@@ -1,0 +1,10 @@
+{
+  "id": "lancer-companion",
+  "name": "Lancer Companion",
+  "version": "1.0.0",
+  "minAppVersion": "0.15.0",
+  "description": "Das ultimative Lancer Tool: Importiert LCP Dateien und zeichnet Fortschritts-Uhren & Balken [Clock: Name X/Y].",
+  "author": "Antigravity",
+  "authorUrl": "",
+  "isDesktopOnly": true
+}
