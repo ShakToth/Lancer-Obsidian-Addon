@@ -3,6 +3,8 @@
 A high-contrast, aggressive, sci-fi terminal theme for Obsidian. 
 Built specifically to emulate the UNION_OS look and feel for the Lancer TTRPG.
 
+![Lancer-OS Screenshot](assets/screenshot.png)
+
 ## Features
 - Deep black/grey background for minimal eye strain
 - Aggressive neon orange (`#ff4500`) primary accent for headers, structural icons, and properties
