@@ -2,6 +2,8 @@
 
 **Lancer-OS** is a comprehensive, all-in-one suite designed specifically for Game Masters running the [Lancer RPG](https://massif-press.itch.io/corebook-pdf-free) in [Obsidian](https://obsidian.md/). It transforms your standard markdown vault into a fully functional, dark sci-fi COMP/CON style terminal.
 
+![Lancer-OS Suite Screenshot](theme/assets/screenshot.png)
+
 ## 🚀 Features
 
 ### 1. Lancer-OS Theme
