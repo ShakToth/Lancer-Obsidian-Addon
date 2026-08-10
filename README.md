@@ -12,76 +12,37 @@ A custom, dark sci-fi CSS theme that completely overhauls the Obsidian UI.
 - Terminal-style fonts, neon orange accents, and dark backgrounds.
 - Headers automatically receive the "UNION_OS //" prefix.
 
-### 2. Interactive Clocks & Progress Bars
-Manage your mission timers and progress directly in Reading View. You can render different sizes of circular clocks or linear progress bars by typing specific brackets anywhere in your notes.
+### 2. Glossary & Status Tooltips (New in M3)
+Never look up status effects during combat again. The plugin automatically scans your notes for official Lancer keywords (e.g., `PRONE`, `STUNNED`, `SHREDDED`, `INVISIBLE`).
+- Keywords are subtly highlighted in Reading View.
+- **Hover** over them to instantly see the full rule definition in a slick UNION_OS tooltip!
 
-**Syntax Options:**
-- `[Clock: Mission Timer 4/8]` (Default Medium Clock)
-- `[Clock-L: Main Objective 2/4]` (Large Clock)
-- `[Clock-S: Small Timer 1/3]` (Small Clock)
-- `[Bar: Health 15/20]` (Default Medium Bar)
-- `[Bar-L: Boss HP 30/40]` (Large Bar)
-- `[Bar-S: Minor Progress 2/5]` (Small Bar)
+### 3. Integrated Dice Roller (New in M1)
+Roll dice directly inside your notes without switching to another app.
+- Syntax: `[Roll: 1d20+2]` or `[Roll: 2d6]`
+- Click the button to roll, and the result (and math) is displayed inline instantly.
 
-**Interactive:** Click the `[-]` and `[+]` buttons next to the clock in Reading View to automatically update the markdown source file! No need to switch back to Edit mode.
+### 4. Advanced Encounter & Combat Tracker (New in M1)
+A dedicated right-sidebar view that tracks all characters in your scene and manages initiative.
+- **Roster & Initiative Tabs:** Organize characters before combat, then switch to Initiative when lasers start flying.
+- **Combat Controls:** Top-level `Start Combat`, `Stop Combat`, and `Next Turn` buttons.
+- **Active Turn Highlighting:** The current acting character's card is highlighted in bright orange.
+- **Auto-Detection:** Simply link to a character note in your current file (e.g., `[[Commander Smith]]`), and the tracker pulls their stats automatically.
 
-### 3. Automated LCP Importer
-Built-in Python parser that bridges the gap between COMP/CON and Obsidian.
-- Upload any `.lcp` file (like Core NPCs) via the Lancer-OS Sidebar button.
-- Automatically extracts all NPCs, abilities, and weapons.
-- Generates beautiful, tagged Markdown files with full YAML frontmatter.
+### 5. Automated PC & NPC Importers (New in M2 & M3)
+Bridging the gap between COMP/CON and Obsidian with powerful data extractors.
+- **NPC LCP Importer:** Upload `.lcp` files to extract all NPC classes and abilities.
+- **PC JSON Importer:** Upload your players' COMP/CON Pilot exports (`.json`). Automatically extracts their active Mech, Weapons, Systems, Licenses, Talents, and Lore!
+- **Dynamic Template Engine:** Both importers read your own Obsidian templates (e.g., `99_TEMPLATES/TEMPLATE_NPC.md`). Just place the `{{LANCER_STATS}}` tag in your template, and the plugin will seamlessly inject the crunch while keeping your beautiful YAML and layout intact!
 
-### 4. Dynamic Statblocks & Tier Switching
-Create beautiful, COMP/CON style stat grids for your mechs. To use this, simply create a code block with the language `lancer-stats`.
+### 6. Interactive Clocks & Progress Bars
+Manage your mission timers and progress directly in Reading View. 
+- Syntax: `[Clock: Mission Timer 4/8]` or `[Bar: Health 15/20]`
+- **Interactive:** Click the `[-]` and `[+]` buttons next to the clock in Reading View to automatically update the markdown source file!
 
-**Syntax:**
-Provide comma-separated values to define the stats for Tier 1, Tier 2, and Tier 3.
-````markdown
-```lancer-stats
-🤖 Basis-Stats
-HP: 10, 12, 14
-Armor: 1, 2, 2
-Evasion: 8, 9, 10
-E-Defense: 8, 9, 10
-Speed: 4, 5, 5
-Sensor Range: 5, 5, 5
-```
-````
-**Interactive:** The plugin will automatically render a **[T1] [T2] [T3]** toggle switch. Click a Tier button, and the stats on the grid will instantly scale to the correct values!
-
-### 5. Sidebar Encounter Tracker
-A dedicated right-sidebar view that automatically tracks all characters in your current scene.
-
-**How to use:**
-Simply link to a character note in your current file (e.g., `[[Commander Smith]]` or `[[ASSAULT MECH]]`). The tracker reads the links and categorizes them automatically.
-
-**File Setup Requirements:**
-For the tracker to recognize the linked files, the linked notes must have specific YAML frontmatter properties at the top of the file:
-
-*To be recognized as a **Story Character**:*
-```yaml
----
-tags:
-  - NPC
-fraktion: "Harrison Armory"
-rolle: "Commander"
----
-```
-
-*To be recognized as a **Combat Mech** (with Mini-Stat Cards):*
-```yaml
----
-tags:
-  - NPC_Class # or Mech
-HP: 15
-Armor: 1
-Evasion: 8
-E-Defense: 8
-Speed: 4
----
-```
-
-**Pro-Tip:** Link a specific Tier using `[[ASSAULT MECH#T2]]`, and the Tracker will automatically load that Mech at Tier 2 for the encounter!
+### 7. Dynamic Statblocks & Tier Switching
+Create beautiful, COMP/CON style stat grids for your mechs using the `lancer-stats` code block. Provide comma-separated values for Tiers (e.g., `HP: 10, 12, 14`).
+- **Interactive:** The plugin renders a **[T1] [T2] [T3]** toggle switch. Click a Tier button, and the stats instantly scale!
 
 ## 📦 Installation
 
