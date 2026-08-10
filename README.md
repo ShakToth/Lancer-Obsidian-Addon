@@ -11,27 +11,75 @@ A custom, dark sci-fi CSS theme that completely overhauls the Obsidian UI.
 - Headers automatically receive the "UNION_OS //" prefix.
 
 ### 2. Interactive Clocks & Progress Bars
-Manage your mission timers and progress directly in Reading View. 
-Use the simple syntax `[Clock: Mission Timer 4/8]` anywhere in your notes to render a visual clock. 
+Manage your mission timers and progress directly in Reading View. You can render different sizes of circular clocks or linear progress bars by typing specific brackets anywhere in your notes.
+
+**Syntax Options:**
+- `[Clock: Mission Timer 4/8]` (Default Medium Clock)
+- `[Clock-L: Main Objective 2/4]` (Large Clock)
+- `[Clock-S: Small Timer 1/3]` (Small Clock)
+- `[Bar: Health 15/20]` (Default Medium Bar)
+- `[Bar-L: Boss HP 30/40]` (Large Bar)
+- `[Bar-S: Minor Progress 2/5]` (Small Bar)
+
 **Interactive:** Click the `[-]` and `[+]` buttons next to the clock in Reading View to automatically update the markdown source file! No need to switch back to Edit mode.
 
 ### 3. Automated LCP Importer
 Built-in Python parser that bridges the gap between COMP/CON and Obsidian.
 - Upload any `.lcp` file (like Core NPCs) via the Lancer-OS Sidebar button.
 - Automatically extracts all NPCs, abilities, and weapons.
-- Generates beautiful, tagged Markdown files with full YAML frontmatter for Dataview integration.
+- Generates beautiful, tagged Markdown files with full YAML frontmatter.
 
 ### 4. Dynamic Statblocks & Tier Switching
-NPC files are generated with a special ````lancer-stats```` codeblock.
-- Automatically renders a beautiful stat grid (HP, Armor, Evasion, etc.).
-- Includes a live **[T1] [T2] [T3]** toggle switch. Click a Tier button, and the stats on the grid will instantly scale to the correct values!
+Create beautiful, COMP/CON style stat grids for your mechs. To use this, simply create a code block with the language `lancer-stats`.
+
+**Syntax:**
+Provide comma-separated values to define the stats for Tier 1, Tier 2, and Tier 3.
+````markdown
+```lancer-stats
+🤖 Basis-Stats
+HP: 10, 12, 14
+Armor: 1, 2, 2
+Evasion: 8, 9, 10
+E-Defense: 8, 9, 10
+Speed: 4, 5, 5
+Sensor Range: 5, 5, 5
+```
+````
+**Interactive:** The plugin will automatically render a **[T1] [T2] [T3]** toggle switch. Click a Tier button, and the stats on the grid will instantly scale to the correct values!
 
 ### 5. Sidebar Encounter Tracker
 A dedicated right-sidebar view that automatically tracks all characters in your current scene.
-- Simply link to a character in your note (e.g., `[[Kassandra Newton]]`).
-- The Tracker separates **Story Characters** from **Combat Mechs**.
-- Combat Mechs are displayed as mini-stat cards showing their current stats.
-- **Pro-Tip:** Link a specific Tier using `[[NPC#T2]]`, and the Tracker will automatically load that Mech at Tier 2 for the encounter!
+
+**How to use:**
+Simply link to a character note in your current file (e.g., `[[Commander Smith]]` or `[[ASSAULT MECH]]`). The tracker reads the links and categorizes them automatically.
+
+**File Setup Requirements:**
+For the tracker to recognize the linked files, the linked notes must have specific YAML frontmatter properties at the top of the file:
+
+*To be recognized as a **Story Character**:*
+```yaml
+---
+tags:
+  - NPC
+fraktion: "Harrison Armory"
+rolle: "Commander"
+---
+```
+
+*To be recognized as a **Combat Mech** (with Mini-Stat Cards):*
+```yaml
+---
+tags:
+  - NPC_Class # or Mech
+HP: 15
+Armor: 1
+Evasion: 8
+E-Defense: 8
+Speed: 4
+---
+```
+
+**Pro-Tip:** Link a specific Tier using `[[ASSAULT MECH#T2]]`, and the Tracker will automatically load that Mech at Tier 2 for the encounter!
 
 ## 📦 Installation
 
