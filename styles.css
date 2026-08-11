@@ -2,8 +2,8 @@
 .lancer-tooltip {
     position: relative;
     cursor: help;
-    border-bottom: 1px dotted var(--text-accent);
-    color: var(--text-accent);
+    border-bottom: 1px dotted var(--text-accent, #ff4500);
+    color: var(--text-accent, #ff4500);
     font-weight: bold;
 }
 
@@ -15,10 +15,10 @@
     transform: translateX(-50%);
     width: 250px;
     padding: 10px;
-    background-color: var(--background-primary-alt);
-    color: var(--text-normal);
-    border: 1px solid var(--text-accent);
-    border-left: 3px solid var(--text-accent);
+    background-color: var(--background-secondary, #1e1e1e);
+    color: var(--text-normal, #dcddde);
+    border: 1px solid var(--text-accent, #ff4500);
+    border-left: 3px solid var(--text-accent, #ff4500);
     box-shadow: 0 4px 10px rgba(0,0,0,0.5);
     border-radius: 4px;
     font-size: 0.85em;
