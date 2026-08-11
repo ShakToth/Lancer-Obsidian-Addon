@@ -127,8 +127,7 @@ Sensor Range: {sensors}
             content = content.replace("<% tp.file.title %>", name)
             content = content.replace("{{name}}", name)
             
-            clean_name = re.sub(r'\s*\[.*?\]', '', name).strip()
-            file_path = os.path.join(target_dir, f"{clean_name.replace('/', '_').replace(':', '')}.md")
+            file_path = os.path.join(target_dir, f"{name.replace('/', '_').replace(':', '')}.md")
             with open(file_path, "w", encoding="utf-8") as file:
                 file.write(content)
 
