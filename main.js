@@ -747,20 +747,20 @@ class LcpImporterFeature {
                 new Notice(`Lese ${file.name} in den Speicher...`);
                 
                 const arrayBuffer = await file.arrayBuffer();
-                const buffer = Buffer.from(arrayBuffer);
+                const uint8Array = new Uint8Array(arrayBuffer);
                 
                 const vaultPath = this.plugin.app.vault.adapter.getBasePath();
                 const pluginDir = path.join(vaultPath, '.obsidian', 'plugins', 'lancer-companion');
                 const tempLcpPath = path.join(pluginDir, 'temp_import.lcp');
                 
                 // Write the file to the plugin directory temporarily
-                fs.writeFileSync(tempLcpPath, buffer);
+                fs.writeFileSync(tempLcpPath, uint8Array);
                 
                 const pythonScript = path.join(pluginDir, 'lcp_parser.py');
                 
                 // Ensure python parser exists, write it from embedded base64 string
                 if (!fs.existsSync(pythonScript)) {
-                    fs.writeFileSync(pythonScript, Buffer.from(LCP_PARSER_PYTHON_BASE64, 'base64').toString('utf-8'));
+                    fs.writeFileSync(pythonScript, atob(LCP_PARSER_PYTHON_BASE64), 'utf-8');
                 }
                 
                 new Notice(`Starte Python-Skript für Daten-Extraktion...`);
