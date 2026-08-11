@@ -82,7 +82,7 @@ Sensor Range: {sensors}
 ---
 **Index:** [[Index_Feind_Statblocks]]
 """
-            template_path = os.path.join(vault_path, "99_TEMPLATES", "TEMPLATE_NPC.md")
+            template_path = os.path.join(vault_path, "99_TEMPLATES", "Template_Mech.md")
             template_text = fallback_content
             if os.path.exists(template_path):
                 with open(template_path, "r", encoding="utf-8") as tf:
