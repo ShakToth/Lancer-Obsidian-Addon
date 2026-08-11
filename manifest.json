@@ -1,7 +1,7 @@
 {
   "id": "lancer-companion",
   "name": "Lancer Companion",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "minAppVersion": "0.15.0",
   "description": "The ultimate Lancer RPG suite: Encounter tracker, PC/NPC Importers, dice roller, and clocks.",
   "author": "ShakToth",
