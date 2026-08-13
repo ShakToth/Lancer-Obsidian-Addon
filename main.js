@@ -1,7 +1,5 @@
 const { Plugin, ItemView, WorkspaceLeaf, Notice, MarkdownPostProcessorContext, Platform, Modal, Setting } = require('obsidian');
-const fs = require('fs');
-const path = require('path');
-const { execFile } = require('child_process');
+let JSZip = null;
 
 const I18N = {
     de: {
