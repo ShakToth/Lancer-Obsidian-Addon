@@ -1232,7 +1232,11 @@ class EncounterTrackerView extends ItemView {
         }
 
         // Clean up combatants list (remove deleted links)
-        this.combatants = this.combatants.filter(c => allNpcs[c]);
+        // Migrate old string-based combatants to objects if necessary
+        this.combatants = this.combatants.map(c => typeof c === 'string' ? { id: Date.now() + Math.random(), basename: c, currentHp: null, template: "NONE", tier: 0 } : c);
+        
+        // Clean up combatants list (remove deleted links)
+        this.combatants = this.combatants.filter(c => allNpcs[c.basename]);
         // Adjust turn index if combatants array shrank
         if (this.turnIndex >= this.combatants.length) this.turnIndex = 0;
 
@@ -1301,7 +1305,7 @@ class EncounterTrackerView extends ItemView {
     }
 
     renderRosterCard(npc, currentFile) {
-        const inCombat = this.combatants.includes(npc.name);
+        const inCombat = this.combatants.some(c => c.basename === npc.name);
         
         const card = this.contentEl.createEl("div");
         card.style.display = "flex";
@@ -1318,11 +1322,11 @@ class EncounterTrackerView extends ItemView {
         title.style.fontSize = "0.9em";
         title.style.fontWeight = "bold";
         title.style.cursor = "pointer";
-        title.onclick = () => this.plugin.app.workspace.getLeaf('tab').openFile(npc.file);
+        title.onclick = () => this.plugin.app.workspace.getLeaf('tab').openFile(baseStats.file);
         
         let details = [];
-        if (npc.fm.fraktion) details.push(npc.fm.fraktion);
-        if (npc.fm.rolle) details.push(npc.fm.rolle);
+        if (baseStats.fm.fraktion) details.push(baseStats.fm.fraktion);
+        if (baseStats.fm.rolle) details.push(baseStats.fm.rolle);
         if (details.length > 0) {
             const sub = leftBox.createEl("div", { text: details.join(" • ") });
             sub.style.fontSize = "0.7em";
@@ -1344,12 +1348,16 @@ class EncounterTrackerView extends ItemView {
         }
         
         btnAdd.onclick = () => {
-            if (inCombat) {
-                this.combatants = this.combatants.filter(c => c !== npc.name);
-                if (this.turnIndex >= this.combatants.length) this.turnIndex = 0;
-            } else {
-                this.combatants.push(npc.name);
-            }
+            const count = this.combatants.filter(c => c.basename === npc.name).length;
+            const suffix = count > 0 ? " " + String.fromCharCode(65 + count) : ""; // A, B, C...
+            this.combatants.push({
+                id: Date.now() + Math.random().toString(36).substring(7),
+                basename: npc.name,
+                nameSuffix: suffix,
+                currentHp: null, // will be set when initialized in MiniGrid
+                template: "NONE",
+                tier: this.selectedTiers[npc.name] || 0
+            });
             this.updateView(currentFile);
         };
     }
@@ -1394,15 +1402,15 @@ class EncounterTrackerView extends ItemView {
             };
         }
 
-        const activeCombatants = this.combatants.map(c => allNpcs[c]);
-        activeCombatants.forEach((npc, index) => {
-            if (npc) {
-                this.renderInitiativeCard(npc, index, currentFile);
+        const activeCombatants = this.combatants.map(c => ({ instance: c, baseStats: allNpcs[c.basename] }));
+        activeCombatants.forEach((combatantData, index) => {
+            if (combatantData && combatantData.baseStats) {
+                this.renderInitiativeCard(combatantData.instance, combatantData.baseStats, index, currentFile);
             }
         });
     }
 
-    renderInitiativeCard(npc, index, currentFile) {
+    renderInitiativeCard(instance, baseStats, index, currentFile) {
         const isMyTurn = this.isCombatActive && this.turnIndex === index;
         
         const card = this.contentEl.createEl("div");
@@ -1471,19 +1479,49 @@ class EncounterTrackerView extends ItemView {
             this.updateView(currentFile);
         };
 
-        const title = card.createEl("div", { text: npc.name.toUpperCase() });
+        
+        const headerRow = card.createEl("div");
+        headerRow.style.display = "flex";
+        headerRow.style.justifyContent = "space-between";
+        headerRow.style.alignItems = "center";
+        headerRow.style.marginBottom = baseStats.isCombatMech ? "5px" : "0";
+
+        const title = headerRow.createEl("div", { text: `${instance.basename}${instance.nameSuffix || ""}`.toUpperCase() });
         title.style.fontWeight = "bold";
         title.style.color = "var(--text-normal)";
         title.style.cursor = "pointer";
-        title.style.marginBottom = npc.isCombatMech ? "5px" : "0";
-        title.onclick = () => this.plugin.app.workspace.getLeaf('tab').openFile(npc.file);
+        title.onclick = () => this.plugin.app.workspace.getLeaf('tab').openFile(baseStats.file);
+        
+        if (baseStats.isCombatMech) {
+            const templateSelect = headerRow.createEl("select");
+            templateSelect.style.fontSize = "0.75em";
+            templateSelect.style.padding = "2px";
+            templateSelect.style.backgroundColor = "var(--background-primary)";
+            templateSelect.style.color = "var(--text-muted)";
+            templateSelect.style.border = "1px solid var(--background-modifier-border)";
+            
+            const templates = ["NONE", "GRUNT", "ELITE", "VETERAN", "ULTRA", "COMMANDER", "EXOTIC", "MERCENARY"];
+            templates.forEach(t => {
+                const opt = templateSelect.createEl("option", { text: t, value: t });
+                if (instance.template === t) opt.selected = true;
+            });
+            
+            templateSelect.onchange = (e) => {
+                instance.template = e.target.value;
+                if (instance.template === "GRUNT") {
+                    instance.currentHp = 1;
+                }
+                this.updateView(currentFile);
+            };
+        }
 
-        if (npc.isCombatMech) {
-            this.renderMiniGrid(card, npc.name, npc.fm);
+
+        if (baseStats.isCombatMech) {
+            this.renderMiniGrid(card, instance, baseStats.fm, currentFile);
         } else {
             let details = [];
-            if (npc.fm.fraktion) details.push(npc.fm.fraktion);
-            if (npc.fm.rolle) details.push(npc.fm.rolle);
+            if (baseStats.fm.fraktion) details.push(baseStats.fm.fraktion);
+            if (baseStats.fm.rolle) details.push(baseStats.fm.rolle);
             if (details.length > 0) {
                 const sub = card.createEl("div", { text: details.join(" • ") });
                 sub.style.fontSize = "0.75em";
@@ -1492,7 +1530,7 @@ class EncounterTrackerView extends ItemView {
         }
     }
 
-    renderMiniGrid(card, name, stats) {
+    renderMiniGrid(card, instance, stats, currentFile) {
         const grid = card.createEl("div");
         grid.style.display = "grid";
         grid.style.gridTemplateColumns = "repeat(3, 1fr)";
@@ -1506,10 +1544,61 @@ class EncounterTrackerView extends ItemView {
         const edefArr = parseStat(stats["E-Defense"] || stats["e-defense"] || stats.edef);
         const speedArr = parseStat(stats.Speed || stats.speed);
         
-        let currentTier = this.selectedTiers[name] || 0;
+        let currentTier = instance.tier || 0;
         const boxes = [];
         
-        boxes.push(this.createStatBox(grid, "HP", hpArr[currentTier] || hpArr[0], "var(--color-red, #ff5555)"));
+        // Calculate Max HP
+        let maxHp = parseInt(hpArr[currentTier] || hpArr[0]) || 0;
+        if (instance.template === "GRUNT") maxHp = 1;
+        
+        // Initialize current HP if null
+        if (instance.currentHp === null) instance.currentHp = maxHp;
+        
+        // Render Interactive HP Box
+        const hpBox = grid.createEl("div");
+        hpBox.style.border = "1px solid var(--background-modifier-border)";
+        hpBox.style.padding = "4px";
+        hpBox.style.textAlign = "center";
+        hpBox.style.backgroundColor = "var(--background-primary)";
+        hpBox.style.display = "flex";
+        hpBox.style.flexDirection = "column";
+        hpBox.style.justifyContent = "center";
+        hpBox.style.alignItems = "center";
+        
+        const hpValContainer = hpBox.createEl("div");
+        hpValContainer.style.display = "flex";
+        hpValContainer.style.alignItems = "center";
+        hpValContainer.style.justifyContent = "space-between";
+        hpValContainer.style.width = "100%";
+        
+        const btnMinus = hpValContainer.createEl("button", { text: "-" });
+        btnMinus.style.padding = "0 4px";
+        btnMinus.style.backgroundColor = "transparent";
+        btnMinus.style.border = "none";
+        btnMinus.style.color = "var(--text-muted)";
+        btnMinus.style.cursor = "pointer";
+        btnMinus.onclick = () => { instance.currentHp--; this.updateView(currentFile); };
+        
+        const hpText = hpValContainer.createEl("div", { text: `${instance.currentHp} / ${maxHp}` });
+        hpText.style.fontWeight = "bold";
+        hpText.style.color = "var(--color-red, #ff5555)";
+        hpText.style.fontSize = "1.1em";
+        
+        const btnPlus = hpValContainer.createEl("button", { text: "+" });
+        btnPlus.style.padding = "0 4px";
+        btnPlus.style.backgroundColor = "transparent";
+        btnPlus.style.border = "none";
+        btnPlus.style.color = "var(--text-muted)";
+        btnPlus.style.cursor = "pointer";
+        btnPlus.onclick = () => { instance.currentHp++; this.updateView(currentFile); };
+        
+        const hpLabel = hpBox.createEl("div", { text: "HP" });
+        hpLabel.style.fontSize = "0.7em";
+        hpLabel.style.color = "var(--text-muted)";
+        
+        boxes.push(hpBox); // push dummy for index 0 to align with toggle code if needed, wait, the toggle code modifies boxes[0]!
+        // We will need to update the toggle code to update instance max HP and re-render!
+        
         boxes.push(this.createStatBox(grid, "ARMOR", armorArr[currentTier] || armorArr[0]));
         boxes.push(this.createStatBox(grid, "EVA", evaArr[currentTier] || evaArr[0]));
         boxes.push(this.createStatBox(grid, "E-DEF", edefArr[currentTier] || edefArr[0]));
@@ -1536,17 +1625,19 @@ class EncounterTrackerView extends ItemView {
                 
                 btn.onclick = (e) => {
                     e.stopPropagation();
-                    this.selectedTiers[name] = i;
-                    boxes[0].innerText = hpArr[i] || hpArr[0];
-                    boxes[1].innerText = armorArr[i] || armorArr[0];
-                    boxes[2].innerText = evaArr[i] || evaArr[0];
-                    boxes[3].innerText = edefArr[i] || edefArr[0];
-                    boxes[4].innerText = speedArr[i] || speedArr[0];
                     
-                    toggleContainer.childNodes.forEach((b, idx) => {
-                        b.style.backgroundColor = idx === i ? "var(--text-accent)" : "transparent";
-                        b.style.color = idx === i ? "var(--background-primary)" : "var(--text-accent)";
-                    });
+                    // If HP is at Max, scale it automatically when changing tiers
+                    let oldMax = parseInt(hpArr[currentTier] || hpArr[0]) || 0;
+                    if (instance.template === "GRUNT") oldMax = 1;
+                    let newMax = parseInt(hpArr[i] || hpArr[0]) || 0;
+                    if (instance.template === "GRUNT") newMax = 1;
+                    
+                    if (instance.currentHp === oldMax) {
+                        instance.currentHp = newMax;
+                    }
+                    
+                    instance.tier = i;
+                    this.updateView(currentFile); // Trigger a full re-render which updates all boxes safely
                 };
                 toggleContainer.appendChild(btn);
             }
