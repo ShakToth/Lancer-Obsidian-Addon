@@ -1556,7 +1556,7 @@ class EncounterTrackerView extends ItemView {
         btnMinus.style.cursor = "pointer";
         btnMinus.onclick = () => { instance[valueProp]--; this.updateView(currentFile); };
         
-        const text = valContainer.createEl("div", { text: ${instance[valueProp]} /  });
+        const text = valContainer.createEl("div", { text: `${instance[valueProp]} / ${maxVal}` });
         text.style.fontWeight = "bold";
         if (color) text.style.color = color;
         text.style.fontSize = "1.1em";
