@@ -1,4 +1,4 @@
-import sys
+﻿import sys
 import zipfile
 import json
 import os
@@ -155,12 +155,16 @@ def process_generic_json(z, filename, vault_path):
             file.write(content)
 
 def main():
-    if len(sys.argv) < 3:
-        print("Usage: python lcp_parser.py <lcp_path> <vault_path>")
+    if len(sys.argv) < 4:
+        print("Usage: python lcp_parser.py <lcp_path> <vault_path> <options_json>")
         sys.exit(1)
 
     lcp_path = sys.argv[1]
     vault_path = sys.argv[2]
+    try:
+        options = json.loads(sys.argv[3])
+    except:
+        options = {"npc_classes": True, "npc_templates": True, "player_data": True}
     
     try:
         with zipfile.ZipFile(lcp_path, 'r') as z:
@@ -175,14 +179,16 @@ def main():
                 if f == "lcp_manifest.json": continue
                 
                 if f == "npc_classes.json":
-                    process_npc_classes(z, vault_path, feature_dict)
+                    if options.get("npc_classes", True):
+                        process_npc_classes(z, vault_path, feature_dict)
                 elif f == "npc_templates.json":
-                    process_npc_templates(z, vault_path, feature_dict)
+                    if options.get("npc_templates", True):
+                        process_npc_templates(z, vault_path, feature_dict)
                 elif f == "npc_features.json":
-                    # Handled natively by classes/templates usually, but we could dump it too
-                    process_generic_json(z, f, vault_path)
+                    pass # Only imported when needed by classes/templates
                 else:
-                    process_generic_json(z, f, vault_path)
+                    if options.get("player_data", True):
+                        process_generic_json(z, f, vault_path)
             
         print("LCP erfolgreich extrahiert.")
     except Exception as e:
