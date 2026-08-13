@@ -1,4 +1,4 @@
-﻿---
+---
 aliases: 
 tags:
   - Mech
@@ -9,7 +9,7 @@ pilot:
 ---
 # <% tp.file.title %>
 
-> A = this.class class chassis by = this.manufacturer.
+> A `= this.class` class chassis by `= this.manufacturer`.
 
 ## ⚙️ Loadout & Systems
 - **Weapons:** 

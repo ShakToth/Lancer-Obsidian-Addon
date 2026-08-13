@@ -46,7 +46,8 @@ Create beautiful, COMP/CON style stat grids for your mechs in any standard note 
 2. Open Obsidian > Settings > Community Plugins, and enable `Lancer Companion Plugin`.
 
 ### 3. Add the Templates
-1. Copy the `templates` folder contents into your Vault's template folder.
+1. Choose either the English or German templates from the `templates/en` or `templates/de` folder in this repository.
+2. Copy them into your Vault's template folder (e.g., `99_TEMPLATES/`).
 
 ## ⚙️ Requirements
 - Obsidian v1.4.0+

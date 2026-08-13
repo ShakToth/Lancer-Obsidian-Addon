@@ -16,7 +16,7 @@ pilot:
 - **Systeme:** 
 - **Core Power:** 
 
-## 📖 Notizen
+## 📝 Notizen
 (Besondere Upgrades, kosmetische Anpassungen, Lackierung...)
 
 ---

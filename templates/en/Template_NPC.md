@@ -1,4 +1,4 @@
-﻿---
+---
 aliases: 
 tags:
   - NPC
@@ -12,9 +12,9 @@ location:
 > *"Insert a short quote or mantra for the character here."*
 
 ## 📝 General
-- **Faction:** = this.faction
-- **Role:** = this.role
-- **Location:** = this.location
+- **Faction:** `= this.faction`
+- **Role:** `= this.role`
+- **Location:** `= this.location`
 
 ## 👤 Description & Personality
 (What do they look like? What are their goals?)
