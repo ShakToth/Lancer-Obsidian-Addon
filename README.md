@@ -50,7 +50,7 @@ Create beautiful, COMP/CON style stat grids for your mechs in any standard note 
 
 ## ⚙️ Requirements
 - Obsidian v1.4.0+
-- Python 3 installed on your system (Required *only* if you want to use the automated LCP Importer).
+
 
 ## 📝 License
 This project is an independent creation and is not affiliated with Massif Press. Lancer is a trademark of Massif Press.
