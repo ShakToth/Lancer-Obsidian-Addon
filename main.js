@@ -1531,6 +1531,51 @@ class EncounterTrackerView extends ItemView {
         }
     }
 
+    createInteractiveStatBox(grid, label, valueProp, maxVal, currentFile, instance, color) {
+        const box = grid.createEl("div");
+        box.style.border = "1px solid var(--background-modifier-border)";
+        box.style.padding = "4px";
+        box.style.textAlign = "center";
+        box.style.backgroundColor = "var(--background-primary)";
+        box.style.display = "flex";
+        box.style.flexDirection = "column";
+        box.style.justifyContent = "center";
+        box.style.alignItems = "center";
+        
+        const valContainer = box.createEl("div");
+        valContainer.style.display = "flex";
+        valContainer.style.alignItems = "center";
+        valContainer.style.justifyContent = "space-between";
+        valContainer.style.width = "100%";
+        
+        const btnMinus = valContainer.createEl("button", { text: "-" });
+        btnMinus.style.padding = "0 4px";
+        btnMinus.style.backgroundColor = "transparent";
+        btnMinus.style.border = "none";
+        btnMinus.style.color = "var(--text-muted)";
+        btnMinus.style.cursor = "pointer";
+        btnMinus.onclick = () => { instance[valueProp]--; this.updateView(currentFile); };
+        
+        const text = valContainer.createEl("div", { text: ${instance[valueProp]} /  });
+        text.style.fontWeight = "bold";
+        if (color) text.style.color = color;
+        text.style.fontSize = "1.1em";
+        
+        const btnPlus = valContainer.createEl("button", { text: "+" });
+        btnPlus.style.padding = "0 4px";
+        btnPlus.style.backgroundColor = "transparent";
+        btnPlus.style.border = "none";
+        btnPlus.style.color = "var(--text-muted)";
+        btnPlus.style.cursor = "pointer";
+        btnPlus.onclick = () => { instance[valueProp]++; this.updateView(currentFile); };
+        
+        const labelEl = box.createEl("div", { text: label });
+        labelEl.style.fontSize = "0.7em";
+        labelEl.style.color = "var(--text-muted)";
+        
+        return box;
+    }
+
     renderMiniGrid(card, instance, stats, currentFile) {
         const grid = card.createEl("div");
         grid.style.display = "grid";
