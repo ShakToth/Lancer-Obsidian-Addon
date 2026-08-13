@@ -1482,8 +1482,9 @@ class EncounterTrackerView extends ItemView {
         
         const headerRow = card.createEl("div");
         headerRow.style.display = "flex";
-        headerRow.style.justifyContent = "space-between";
+        headerRow.style.justifyContent = "flex-start";
         headerRow.style.alignItems = "center";
+        headerRow.style.gap = "10px";
         headerRow.style.marginBottom = baseStats.isCombatMech ? "5px" : "0";
 
         const title = headerRow.createEl("div", { text: `${instance.basename}${instance.nameSuffix || ""}`.toUpperCase() });
