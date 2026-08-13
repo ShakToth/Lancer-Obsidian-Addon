@@ -815,6 +815,7 @@ class StatblockFeature {
             const lines = source.split('\n');
             let currentTier = 0; // 0=T1, 1=T2, 2=T3
             let statsData = []; // Array of objects {key, vals: []}
+            let templateLabels = [];
             let headerText = "🤖 Basis-Stats";
 
             for (let line of lines) {
@@ -825,7 +826,12 @@ class StatblockFeature {
                     const key = parts[0].trim();
                     const valRaw = parts.slice(1).join(':').trim();
                     const vals = valRaw.split(',').map(v => v.trim());
-                    statsData.push({ key, vals });
+                    
+                    if (key.toLowerCase() === 'template' || key.toLowerCase() === 'label') {
+                        templateLabels.push(...vals);
+                    } else {
+                        statsData.push({ key, vals });
+                    }
                 } else {
                     if (line.includes("Tier") && line.includes("1")) {
                         // Ignore the static tier header if it's there
@@ -835,16 +841,35 @@ class StatblockFeature {
                 }
             }
 
+            const headerContainer = document.createElement("div");
+            headerContainer.style.gridColumn = "1 / -1";
+            headerContainer.style.borderBottom = "1px solid var(--text-muted)";
+            headerContainer.style.paddingBottom = "4px";
+            headerContainer.style.marginBottom = "8px";
+            headerContainer.style.display = "flex";
+            headerContainer.style.alignItems = "center";
+            headerContainer.style.gap = "10px";
+            container.appendChild(headerContainer);
+
             const header = document.createElement("div");
             header.innerText = headerText + " (TIER 1)";
-            header.style.gridColumn = "1 / -1";
             header.style.color = "var(--text-accent)";
             header.style.fontWeight = "bold";
             header.style.textTransform = "uppercase";
-            header.style.borderBottom = "1px solid var(--text-muted)";
-            header.style.paddingBottom = "2px";
-            header.style.marginBottom = "8px";
-            container.appendChild(header);
+            headerContainer.appendChild(header);
+
+            // Render badges
+            templateLabels.forEach(label => {
+                const badge = document.createElement("span");
+                badge.innerText = label.toUpperCase();
+                badge.style.backgroundColor = "var(--interactive-accent)";
+                badge.style.color = "var(--text-on-accent)";
+                badge.style.fontSize = "0.7em";
+                badge.style.padding = "2px 6px";
+                badge.style.borderRadius = "4px";
+                badge.style.fontWeight = "bold";
+                headerContainer.appendChild(badge);
+            });
 
             // Create toggle buttons if we have multiple tiers
             const hasMultipleTiers = statsData.some(s => s.vals.length > 1);
