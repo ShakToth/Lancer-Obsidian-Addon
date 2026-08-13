@@ -1,4 +1,4 @@
-﻿import sys
+import sys
 import zipfile
 import json
 import os
