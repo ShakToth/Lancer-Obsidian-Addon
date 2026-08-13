@@ -823,6 +823,9 @@ class LcpImportModal extends Modal {
 class LcpImporterFeature {
     constructor(plugin) {
         this.plugin = plugin;
+    }
+
+    load() {
         this.plugin.addCommand({
             id: 'import-lcp-data',
             name: 'Import LCP Data (Feinde, Templates, etc)',
