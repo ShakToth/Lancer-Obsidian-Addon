@@ -1322,11 +1322,11 @@ class EncounterTrackerView extends ItemView {
         title.style.fontSize = "0.9em";
         title.style.fontWeight = "bold";
         title.style.cursor = "pointer";
-        title.onclick = () => this.plugin.app.workspace.getLeaf('tab').openFile(baseStats.file);
+        title.onclick = () => this.plugin.app.workspace.getLeaf('tab').openFile(npc.file);
         
         let details = [];
-        if (baseStats.fm.fraktion) details.push(baseStats.fm.fraktion);
-        if (baseStats.fm.rolle) details.push(baseStats.fm.rolle);
+        if (npc.fm.fraktion) details.push(npc.fm.fraktion);
+        if (npc.fm.rolle) details.push(npc.fm.rolle);
         if (details.length > 0) {
             const sub = leftBox.createEl("div", { text: details.join(" • ") });
             sub.style.fontSize = "0.7em";
