@@ -1518,7 +1518,7 @@ class EncounterTrackerView extends ItemView {
 
 
         if (baseStats.isCombatMech) {
-            this.renderMiniGrid(card, instance, baseStats.fm, currentFile);
+            this.renderMiniGrid(card, instance, baseStats.fm, currentFile, headerRow);
         } else {
             let details = [];
             if (baseStats.fm.fraktion) details.push(baseStats.fm.fraktion);
@@ -1623,14 +1623,12 @@ class EncounterTrackerView extends ItemView {
         boxes.push(this.createStatBox(grid, "E-DEF", edefArr[currentTier] || edefArr[0]));
         boxes.push(this.createStatBox(grid, "SPD", speedArr[currentTier] || speedArr[0]));
 
-        if (hpArr.length > 1) {
-            const toggleContainer = card.createEl("div");
-            toggleContainer.style.position = "absolute";
-            toggleContainer.style.top = "40px";
-            toggleContainer.style.right = "5px";
+        if (hpArr.length > 1 && headerRow) {
+            const toggleContainer = headerRow.createEl("div");
             toggleContainer.style.display = "flex";
-            toggleContainer.style.flexDirection = "column";
-            toggleContainer.style.gap = "2px";
+            toggleContainer.style.flexDirection = "row";
+            toggleContainer.style.gap = "4px";
+            toggleContainer.style.marginLeft = "auto";
 
             for (let i = 0; i < 3; i++) {
                 const btn = document.createElement("button");
