@@ -851,50 +851,233 @@ class LcpImporterFeature {
                     new Notice(t.no_file);
                     return;
                 }
+                const { vault } = this.plugin.app;
                 
                 try {
                     new Notice(t.reading_file.replace('{name}', file.name));
-                    
                     const arrayBuffer = await file.arrayBuffer();
-                    const uint8Array = new Uint8Array(arrayBuffer);
                     
-                    const vaultPath = this.plugin.app.vault.adapter.getBasePath();
-                    const pluginDir = path.join(vaultPath, '.obsidian', 'plugins', 'lancer-companion');
-                    const tempLcpPath = path.join(pluginDir, 'temp_import.lcp');
+                    // Lazy-load JSZip from plugin directory
+                    if (!JSZip) {
+                        const _path = require('path');
+                        const _fs = require('fs');
+                        const pluginDir = _path.join(vault.adapter.getBasePath(), '.obsidian', 'plugins', 'lancer-companion');
+                        const jszipCode = _fs.readFileSync(_path.join(pluginDir, 'jszip.min.js'), 'utf8');
+                        const _module = { exports: {} };
+                        const _fn = new Function('module', 'exports', jszipCode);
+                        _fn(_module, _module.exports);
+                        JSZip = _module.exports;
+                    }
                     
-                    // Write the file to the plugin directory temporarily
-                    fs.writeFileSync(tempLcpPath, uint8Array);
+                    const zip = await JSZip.loadAsync(arrayBuffer);
+                    const zipFiles = Object.keys(zip.files);
                     
-                    const pythonScript = path.join(pluginDir, 'lcp_parser.py');
-                    
-                    // Ensure python parser exists and is updated, write it from embedded base64 string
-                    fs.writeFileSync(pythonScript, atob(LCP_PARSER_PYTHON_BASE64), 'utf-8');
-                    
-                    new Notice(t.starting_python);
-                    
-                    const optionsJson = JSON.stringify(options);
-                    
-                    const { execFile } = require('child_process');
-                    execFile('python', [pythonScript, tempLcpPath, vaultPath, optionsJson], (error, stdout, stderr) => {
-                        // Clean up temp file
-                        if (fs.existsSync(tempLcpPath)) {
-                            fs.unlinkSync(tempLcpPath);
+                    const lang = window.moment ? window.moment.locale() : 'en';
+                    const pt = {
+                        de: {
+                            base_weapons: "Basis-Waffen & Systeme", attack: "Angriff", damage: "Schaden", auto_extracted: "*(Diese Notiz wurde automatisch aus einer LCP-Datei extrahiert.)*", index_enemy: "**Index:** [[Index_Feind_Statblocks]]", base_stats: "Basis-Stats", template_features: "Template Features", effect: "Effekt"
+                        },
+                        en: {
+                            base_weapons: "Base Weapons & Systems", attack: "Attack", damage: "Damage", auto_extracted: "*(This note was automatically extracted from an LCP file.)*", index_enemy: "**Index:** [[Index_Enemy_Statblocks]]", base_stats: "Base Stats", template_features: "Template Features", effect: "Effect"
                         }
+                    };
+                    const pt_lang = pt[lang] || pt['en'];
+                    
+                    const stripHtml = (text) => {
+                        if (typeof text !== 'string') return '';
+                        return text.replace(/<[^<]+>/g, '');
+                    };
+                    
+                    const safeName = (str) => {
+                        return String(str).replace(/[<>:"\/\\|?*]/g, '');
+                    };
+                    
+                    const ensureDir = async (folderPath) => {
+                        const parts = folderPath.split('/');
+                        let currentPath = '';
+                        for (let part of parts) {
+                            if (!part) continue;
+                            currentPath = currentPath ? currentPath + '/' + part : part;
+                            try {
+                                if (!vault.getAbstractFileByPath(currentPath)) {
+                                    await vault.createFolder(currentPath);
+                                }
+                            } catch (e) { /* ignore if exists */ }
+                        }
+                    };
+                    
+                    const readJson = async (filename) => {
+                        const f = zip.file(filename);
+                        if (!f) return null;
+                        const raw = await f.async("string");
+                        return JSON.parse(raw);
+                    };
+                    
+                    // Load NPC features for cross-referencing
+                    let featureDict = {};
+                    try {
+                        const featuresData = await readJson("npc_features.json");
+                        if (Array.isArray(featuresData)) {
+                            for (const f of featuresData) {
+                                if (f && f.id) featureDict[f.id] = f;
+                            }
+                        }
+                    } catch (e) { /* no features file */ }
+                    
+                    // Try to load the user's template
+                    let templateText = null;
+                    const templatePath = "99_TEMPLATES/Template_Mech.md";
+                    const templateFile = vault.getAbstractFileByPath(templatePath);
+                    if (templateFile) {
+                        templateText = await vault.read(templateFile);
+                    }
+                    
+                    for (let fname of zipFiles) {
+                        if (!fname.endsWith('.json')) continue;
+                        if (fname === "lcp_manifest.json") continue;
                         
-                        if (error) {
-                            console.error("Python Error:", error);
-                            console.error("Stderr:", stderr);
-                            let errMsg = stderr ? stderr.trim() : error.message;
-                            if (errMsg.length > 100) errMsg = errMsg.substring(0, 100) + "...";
-                            new Notice(t.script_error.replace('{err}', errMsg));
-                            return;
+                        if (fname === "npc_classes.json" && options.npc_classes) {
+                            const classes = await readJson(fname);
+                            if (!Array.isArray(classes)) continue;
+                            await ensureDir("00_Regeln/Feind_Statblocks");
+                            
+                            for (let npc of classes) {
+                                const name = npc.name || "Unknown";
+                                const stats = npc.stats || {};
+                                
+                                const hp = stats.hp ? (Array.isArray(stats.hp) ? stats.hp.join(", ") : stats.hp) : "0";
+                                const armor = stats.armor ? (Array.isArray(stats.armor) ? stats.armor.join(", ") : stats.armor) : "0";
+                                const evasion = stats.evasion ? (Array.isArray(stats.evasion) ? stats.evasion.join(", ") : stats.evasion) : "0";
+                                const edef = stats.edef ? (Array.isArray(stats.edef) ? stats.edef.join(", ") : stats.edef) : "0";
+                                const speed = stats.speed ? (Array.isArray(stats.speed) ? stats.speed.join(", ") : stats.speed) : "0";
+                                const sensors = stats.sensor ? (Array.isArray(stats.sensor) ? stats.sensor.join(", ") : stats.sensor) : "0";
+                                
+                                let featuresMd = "## ⛔️ " + pt_lang.base_weapons + "\n";
+                                const baseFeatures = npc.base_features || [];
+                                for (let fId of baseFeatures) {
+                                    if (featureDict[fId]) {
+                                        const feat = featureDict[fId];
+                                        const fName = feat.name || "Unknown";
+                                        const fType = feat.type || "System";
+                                        const wType = feat.weapon_type || "Main";
+                                        
+                                        if (fType === "Weapon") {
+                                            const attBonus = (feat.attack_bonus || [0])[0];
+                                            const dmgList = feat.damage || [];
+                                            let dmgStr = "";
+                                            if (dmgList.length > 0) {
+                                                const d = dmgList[0];
+                                                const dmgVal = Array.isArray(d.damage) ? (d.damage[0] || 0) : (d.val || 0);
+                                                const dmgType = d.type || "";
+                                                dmgStr = dmgVal + " " + dmgType;
+                                            }
+                                            featuresMd += "- **" + fName + "** (" + wType + ")\n  - " + pt_lang.attack + ": +" + attBonus + " | " + pt_lang.damage + ": " + dmgStr + "\n";
+                                        } else {
+                                            let effect = stripHtml(feat.effect || "");
+                                            if (effect.length > 300) effect = effect.substring(0, 297) + "...";
+                                            featuresMd += "- **" + fName + "** (" + fType + ")\n  - " + effect + "\n";
+                                        }
+                                    }
+                                }
+                                
+                                const statsBlock = "```lancer-stats\n📊 " + pt_lang.base_stats + "\nHP: " + hp + "\nArmor: " + armor + "\nEvasion: " + evasion + "\nE-Defense: " + edef + "\nSpeed: " + speed + "\nSensor Range: " + sensors + "\n```\n" + featuresMd;
+                                
+                                let content;
+                                if (templateText) {
+                                    content = templateText;
+                                    const yamlMatch = content.match(/^---\n([\s\S]*?)\n---/);
+                                    let mergedYaml = "---\ntags:\n  - NPC_Class\nHP: " + hp + "\nArmor: " + armor + "\nEvasion: " + evasion + "\nE-Defense: " + edef + "\nSpeed: " + speed + "\nSensor Range: " + sensors + "\n---";
+                                    if (yamlMatch) {
+                                        content = content.replace(/^---\n[\s\S]*?\n---/, mergedYaml);
+                                    } else {
+                                        content = mergedYaml + "\n" + content;
+                                    }
+                                    if (content.includes("{{LANCER_STATS}}")) {
+                                        content = content.replace("{{LANCER_STATS}}", statsBlock);
+                                    } else {
+                                        content += "\n\n" + statsBlock;
+                                    }
+                                    content = content.replace(/<% tp.file.title %>/g, name);
+                                    content = content.replace(/{{name}}/g, name);
+                                } else {
+                                    content = "---\ntags:\n  - NPC_Class\nHP: " + hp + "\nArmor: " + armor + "\nEvasion: " + evasion + "\nE-Defense: " + edef + "\nSpeed: " + speed + "\nSensor Range: " + sensors + "\n---\n# " + name + "\n\n" + statsBlock + "\n\n" + pt_lang.auto_extracted + "\n\n---\n" + pt_lang.index_enemy;
+                                }
+                                
+                                const filePath = "00_Regeln/Feind_Statblocks/" + safeName(name) + ".md";
+                                const existing = vault.getAbstractFileByPath(filePath);
+                                if (existing) { await vault.modify(existing, content); }
+                                else { await vault.create(filePath, content); }
+                            }
+                        } else if (fname === "npc_templates.json" && options.npc_templates) {
+                            const templates = await readJson(fname);
+                            if (!Array.isArray(templates)) continue;
+                            await ensureDir("00_Regeln/Feind_Templates");
+                            
+                            for (let temp of templates) {
+                                const name = temp.name || "Unknown";
+                                const desc = stripHtml(temp.description || "");
+                                
+                                let featuresMd = "## ⛔️ " + pt_lang.template_features + "\n";
+                                const baseFeatures = temp.base_features || [];
+                                for (let fId of baseFeatures) {
+                                    if (featureDict[fId]) {
+                                        const feat = featureDict[fId];
+                                        const fName = feat.name || "Unknown";
+                                        const effect = stripHtml(feat.effect || "");
+                                        featuresMd += "- **" + fName + "**\n  - " + effect + "\n";
+                                    }
+                                }
+                                
+                                const content = "---\ntags:\n  - NPC_Template\n---\n# " + name + "\n\n" + desc + "\n\n" + featuresMd;
+                                const filePath = "00_Regeln/Feind_Templates/" + safeName(name) + ".md";
+                                const existing = vault.getAbstractFileByPath(filePath);
+                                if (existing) { await vault.modify(existing, content); }
+                                else { await vault.create(filePath, content); }
+                            }
+                        } else if (fname === "npc_features.json") {
+                            // Only imported when needed by classes/templates
+                        } else if (options.player_data) {
+                            const data = await readJson(fname);
+                            if (!Array.isArray(data)) continue;
+                            
+                            const category = fname.replace('.json', '');
+                            const capCategory = category.charAt(0).toUpperCase() + category.slice(1);
+                            await ensureDir("00_Regeln/LCP_Data");
+                            await ensureDir("00_Regeln/LCP_Data/" + capCategory);
+                            
+                            for (let item of data) {
+                                if (typeof item !== 'object' || item === null) continue;
+                                const name = item.name || "Unknown";
+                                
+                                let yamlLines = ["---"];
+                                for (const [k, v] of Object.entries(item)) {
+                                    if (["name", "description", "effect"].includes(k)) continue;
+                                    if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
+                                        yamlLines.push(k + ": " + v);
+                                    } else if (Array.isArray(v) && v.length > 0 && typeof v[0] === 'string') {
+                                        yamlLines.push(k + ": [" + v.join(", ") + "]");
+                                    }
+                                }
+                                yamlLines.push("---");
+                                
+                                const desc = stripHtml(item.description || "");
+                                const effect = stripHtml(item.effect || "");
+                                let content = yamlLines.join("\n") + "\n# " + name + "\n\n";
+                                if (desc) content += desc + "\n\n";
+                                if (effect) content += "### " + pt_lang.effect + "\n" + effect + "\n";
+                                
+                                const filePath = "00_Regeln/LCP_Data/" + capCategory + "/" + safeName(name) + ".md";
+                                const existing = vault.getAbstractFileByPath(filePath);
+                                if (existing) { await vault.modify(existing, content); }
+                                else { await vault.create(filePath, content); }
+                            }
                         }
-                        new Notice(t.import_success);
-                        console.log('LCP Importer Output:', stdout);
-                    });
+                    }
+                    
+                    new Notice(t.import_success);
                 } catch (err) {
-                    console.error(err);
-                    new Notice(t.read_error);
+                    new Notice(t.script_error.replace('{err}', err.message));
+                    console.error("LCP Import error:", err);
                 }
             };
             input.click();

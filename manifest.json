@@ -1,10 +1,10 @@
-{
-  "id": "lancer-companion",
-  "name": "Lancer Companion",
-  "version": "1.0.4",
-  "minAppVersion": "0.15.0",
-  "description": "The ultimate Lancer RPG suite: Encounter tracker, PC/NPC Importers, dice roller, and clocks.",
-  "author": "ShakToth",
-  "authorUrl": "https://github.com/ShakToth",
-  "isDesktopOnly": true
+﻿{
+    "id":  "lancer-companion",
+    "name":  "Lancer Companion",
+    "version":  "1.0.5",
+    "minAppVersion":  "0.15.0",
+    "description":  "The ultimate Lancer RPG suite: Encounter tracker, PC/NPC Importers, dice roller, and clocks.",
+    "author":  "ShakToth",
+    "authorUrl":  "https://github.com/ShakToth",
+    "isDesktopOnly":  false
 }
