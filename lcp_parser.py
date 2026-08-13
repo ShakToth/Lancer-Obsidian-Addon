@@ -4,12 +4,39 @@ import json
 import os
 import re
 
+I18N = {
+    "de": {
+        "base_weapons": "Basis-Waffen & Systeme",
+        "attack": "Angriff",
+        "damage": "Schaden",
+        "auto_extracted": "*(Diese Notiz wurde automatisch aus einer LCP-Datei extrahiert.)*",
+        "index_enemy": "**Index:** [[Index_Feind_Statblocks]]",
+        "base_stats": "Basis-Stats",
+        "template_features": "Template Features",
+        "effect": "Effekt"
+    },
+    "en": {
+        "base_weapons": "Base Weapons & Systems",
+        "attack": "Attack",
+        "damage": "Damage",
+        "auto_extracted": "*(This note was automatically extracted from an LCP file.)*",
+        "index_enemy": "**Index:** [[Index_Enemy_Statblocks]]",
+        "base_stats": "Base Stats",
+        "template_features": "Template Features",
+        "effect": "Effect"
+    }
+}
+
+def get_i18n(lang):
+    return I18N.get(lang, I18N["en"])
+
 def strip_html(text):
     if not isinstance(text, str):
         return ""
     return re.sub('<[^<]+>', '', text)
 
-def process_npc_classes(z, vault_path, feature_dict):
+def process_npc_classes(z, vault_path, feature_dict, lang):
+    t = get_i18n(lang)
     target_dir = os.path.join(vault_path, "00_Regeln", "Feind_Statblocks")
     os.makedirs(target_dir, exist_ok=True)
     
@@ -28,7 +55,7 @@ def process_npc_classes(z, vault_path, feature_dict):
         speed = ", ".join(map(str, stats.get("speed", [0])))
         sensors = ", ".join(map(str, stats.get("sensor", [0])))
         
-        features_markdown = "## ⚔️ Basis-Waffen & Systeme\n"
+        features_markdown = f"## ⚔️ {t['base_weapons']}\n"
         base_features = npc.get("base_features", [])
         for f_id in base_features:
             if f_id in feature_dict:
@@ -46,14 +73,14 @@ def process_npc_classes(z, vault_path, feature_dict):
                         dmg_val = d.get("damage", [0])[0] if isinstance(d.get("damage"), list) else d.get("val", 0)
                         dmg_type = d.get("type", "")
                         dmg_str = f"{dmg_val} {dmg_type}"
-                    features_markdown += f"- **{f_name}** ({w_type})\n  - Angriff: +{att_bonus} | Schaden: {dmg_str}\n"
+                    features_markdown += f"- **{f_name}** ({w_type})\n  - {t['attack']}: +{att_bonus} | {t['damage']}: {dmg_str}\n"
                 else:
                     effect = strip_html(f.get("effect", ""))
                     if len(effect) > 300:
                         effect = effect[:297] + "..."
                     features_markdown += f"- **{f_name}** ({f_type})\n  - {effect}\n"
 
-        fallback_content = f"\"\"\"---\ntags:\n  - NPC_Class\nHP: {hp}\nArmor: {armor}\nEvasion: {evasion}\nE-Defense: {edef}\nSpeed: {speed}\nSensor Range: {sensors}\n---\n# {name}\n\n{{{{LANCER_STATS}}}}\n\n*(Diese Notiz wurde automatisch aus einer LCP-Datei extrahiert.)*\n\n---\n**Index:** [[Index_Feind_Statblocks]]\n\"\"\""
+        fallback_content = f"\"\"\"---\ntags:\n  - NPC_Class\nHP: {hp}\nArmor: {armor}\nEvasion: {evasion}\nE-Defense: {edef}\nSpeed: {speed}\nSensor Range: {sensors}\n---\n# {name}\n\n{{{{LANCER_STATS}}}}\n\n{t['auto_extracted']}\n\n---\n{t['index_enemy']}\n\"\"\""
         
         template_path = os.path.join(vault_path, "99_TEMPLATES", "Template_Mech.md")
         template_text = fallback_content
@@ -70,7 +97,7 @@ def process_npc_classes(z, vault_path, feature_dict):
             else:
                 template_text = merged_yaml + "---\n" + template_text
 
-        stats_block = f"`lancer-stats\n📊 Basis-Stats\nHP: {hp}\nArmor: {armor}\nEvasion: {evasion}\nE-Defense: {edef}\nSpeed: {speed}\nSensor Range: {sensors}\n`\n{features_markdown}"
+        stats_block = f"`lancer-stats\n📊 {t['base_stats']}\nHP: {hp}\nArmor: {armor}\nEvasion: {evasion}\nE-Defense: {edef}\nSpeed: {speed}\nSensor Range: {sensors}\n`\n{features_markdown}"
 
         content = template_text
         if "{{LANCER_STATS}}" in content:
@@ -86,7 +113,8 @@ def process_npc_classes(z, vault_path, feature_dict):
         with open(file_path, "w", encoding="utf-8") as file:
             file.write(content)
 
-def process_npc_templates(z, vault_path, feature_dict):
+def process_npc_templates(z, vault_path, feature_dict, lang):
+    t = get_i18n(lang)
     target_dir = os.path.join(vault_path, "00_Regeln", "Feind_Templates")
     os.makedirs(target_dir, exist_ok=True)
     try:
@@ -94,12 +122,12 @@ def process_npc_templates(z, vault_path, feature_dict):
     except KeyError:
         return
 
-    for t in templates:
-        name = t.get("name", "Unknown")
-        desc = strip_html(t.get("description", ""))
+    for temp in templates:
+        name = temp.get("name", "Unknown")
+        desc = strip_html(temp.get("description", ""))
         
-        features_markdown = "## ⚔️ Template Features\n"
-        base_features = t.get("base_features", [])
+        features_markdown = f"## ⚔️ {t['template_features']}\n"
+        base_features = temp.get("base_features", [])
         for f_id in base_features:
             if f_id in feature_dict:
                 f = feature_dict[f_id]
@@ -114,7 +142,8 @@ def process_npc_templates(z, vault_path, feature_dict):
         with open(file_path, "w", encoding="utf-8") as file:
             file.write(content)
 
-def process_generic_json(z, filename, vault_path):
+def process_generic_json(z, filename, vault_path, lang):
+    t = get_i18n(lang)
     category = filename.replace('.json', '').title()
     target_dir = os.path.join(vault_path, "00_Regeln", "LCP_Data", category)
     
@@ -147,7 +176,7 @@ def process_generic_json(z, filename, vault_path):
         
         content = f"{yaml_frontmatter}\n# {name}\n\n"
         if desc: content += f"{desc}\n\n"
-        if effect: content += f"### Effect\n{effect}\n"
+        if effect: content += f"### {t['effect']}\n{effect}\n"
         
         safe_name = re.sub(r'[<>:"/\\|?*]', '', str(name))
         file_path = os.path.join(target_dir, f"{safe_name}.md")
@@ -164,7 +193,9 @@ def main():
     try:
         options = json.loads(sys.argv[3])
     except:
-        options = {"npc_classes": True, "npc_templates": True, "player_data": True}
+        options = {"npc_classes": True, "npc_templates": True, "player_data": True, "lang": "en"}
+        
+    lang = options.get("lang", "en")
     
     try:
         with zipfile.ZipFile(lcp_path, 'r') as z:
@@ -180,15 +211,15 @@ def main():
                 
                 if f == "npc_classes.json":
                     if options.get("npc_classes", True):
-                        process_npc_classes(z, vault_path, feature_dict)
+                        process_npc_classes(z, vault_path, feature_dict, lang)
                 elif f == "npc_templates.json":
                     if options.get("npc_templates", True):
-                        process_npc_templates(z, vault_path, feature_dict)
+                        process_npc_templates(z, vault_path, feature_dict, lang)
                 elif f == "npc_features.json":
                     pass # Only imported when needed by classes/templates
                 else:
                     if options.get("player_data", True):
-                        process_generic_json(z, f, vault_path)
+                        process_generic_json(z, f, vault_path, lang)
             
         print("LCP erfolgreich extrahiert.")
     except Exception as e:
