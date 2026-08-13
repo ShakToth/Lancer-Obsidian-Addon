@@ -1576,7 +1576,7 @@ class EncounterTrackerView extends ItemView {
         return box;
     }
 
-    renderMiniGrid(card, instance, stats, currentFile) {
+    renderMiniGrid(card, instance, stats, currentFile, headerRow) {
         const grid = card.createEl("div");
         grid.style.display = "grid";
         grid.style.gridTemplateColumns = "repeat(3, 1fr)";
