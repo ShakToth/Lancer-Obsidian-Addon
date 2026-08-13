@@ -758,10 +758,8 @@ class LcpImporterFeature {
                 
                 const pythonScript = path.join(pluginDir, 'lcp_parser.py');
                 
-                // Ensure python parser exists, write it from embedded base64 string
-                if (!fs.existsSync(pythonScript)) {
-                    fs.writeFileSync(pythonScript, atob(LCP_PARSER_PYTHON_BASE64), 'utf-8');
-                }
+                // Ensure python parser exists and is updated, write it from embedded base64 string
+                fs.writeFileSync(pythonScript, atob(LCP_PARSER_PYTHON_BASE64), 'utf-8');
                 
                 new Notice(`Starte Python-Skript für Daten-Extraktion...`);
 
