@@ -1231,12 +1231,10 @@ class EncounterTrackerView extends ItemView {
             }
         }
 
-        // Clean up combatants list (remove deleted links)
-        // Migrate old string-based combatants to objects if necessary
-        this.combatants = this.combatants.map(c => typeof c === 'string' ? { id: Date.now() + Math.random(), basename: c, currentHp: null, template: "NONE", tier: 0 } : c);
-        
-        // Clean up combatants list (remove deleted links)
-        this.combatants = this.combatants.filter(c => allNpcs[c.basename]);
+        // Migrate old string-based combatants to objects, then filter out deleted links
+        this.combatants = this.combatants
+            .map(c => typeof c === 'string' ? { id: Date.now() + Math.random(), basename: c, currentHp: null, template: "NONE", tier: 0 } : c)
+            .filter(c => allNpcs[c.basename]);
         // Adjust turn index if combatants array shrank
         if (this.turnIndex >= this.combatants.length) this.turnIndex = 0;
 
