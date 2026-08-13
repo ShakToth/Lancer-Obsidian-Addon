@@ -1,4 +1,4 @@
-﻿import sys
+import sys
 import zipfile
 import json
 import os
@@ -81,7 +81,8 @@ def process_npc_classes(z, vault_path, feature_dict):
         content = content.replace("<% tp.file.title %>", name)
         content = content.replace("{{name}}", name)
         
-        file_path = os.path.join(target_dir, f"{name.replace('/', '_').replace(':', '')}.md")
+        safe_name = re.sub(r'[<>:"/\\|?*]', '', str(name))
+        file_path = os.path.join(target_dir, f"{safe_name}.md")
         with open(file_path, "w", encoding="utf-8") as file:
             file.write(content)
 
@@ -108,7 +109,8 @@ def process_npc_templates(z, vault_path, feature_dict):
                 
         content = f"---\ntags:\n  - NPC_Template\n---\n# {name}\n\n{desc}\n\n{features_markdown}"
         
-        file_path = os.path.join(target_dir, f"{name.replace('/', '_').replace(':', '')}.md")
+        safe_name = re.sub(r'[<>:"/\\|?*]', '', str(name))
+        file_path = os.path.join(target_dir, f"{safe_name}.md")
         with open(file_path, "w", encoding="utf-8") as file:
             file.write(content)
 
@@ -147,7 +149,7 @@ def process_generic_json(z, filename, vault_path):
         if desc: content += f"{desc}\n\n"
         if effect: content += f"### Effect\n{effect}\n"
         
-        safe_name = str(name).replace('/', '_').replace(':', '').replace('?', '').replace('\\', '_')
+        safe_name = re.sub(r'[<>:"/\\|?*]', '', str(name))
         file_path = os.path.join(target_dir, f"{safe_name}.md")
         with open(file_path, "w", encoding="utf-8") as file:
             file.write(content)
