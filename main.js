@@ -1064,14 +1064,30 @@ class EncounterTrackerView extends ItemView {
     constructor(leaf, plugin) {
         super(leaf);
         this.plugin = plugin;
-        this.selectedTiers = {}; // { basename: tierIndex }
-        this.combatants = []; // array of basenames
         
-        // New State for Tabbed & Foundry VTT Style Combat
-        this.activeTab = 'roster'; // 'roster' or 'initiative'
-        this.isCombatActive = false;
-        this.turnIndex = 0; // index in this.combatants
+        // Initialize global state if it doesn't exist yet
+        if (!this.plugin.trackerState) {
+            this.plugin.trackerState = {
+                selectedTiers: {}, // { basename: tierIndex }
+                combatants: [], // array of basenames
+                activeTab: 'roster', // 'roster' or 'initiative'
+                isCombatActive: false,
+                turnIndex: 0 // index in this.combatants
+            };
+        }
     }
+
+    // Helper getters/setters to keep existing code working
+    get selectedTiers() { return this.plugin.trackerState.selectedTiers; }
+    set selectedTiers(v) { this.plugin.trackerState.selectedTiers = v; }
+    get combatants() { return this.plugin.trackerState.combatants; }
+    set combatants(v) { this.plugin.trackerState.combatants = v; }
+    get activeTab() { return this.plugin.trackerState.activeTab; }
+    set activeTab(v) { this.plugin.trackerState.activeTab = v; }
+    get isCombatActive() { return this.plugin.trackerState.isCombatActive; }
+    set isCombatActive(v) { this.plugin.trackerState.isCombatActive = v; }
+    get turnIndex() { return this.plugin.trackerState.turnIndex; }
+    set turnIndex(v) { this.plugin.trackerState.turnIndex = v; }
 
     getViewType() {
         return VIEW_TYPE_ENCOUNTER_TRACKER;
