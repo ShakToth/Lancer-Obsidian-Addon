@@ -1613,10 +1613,14 @@ class EncounterTrackerView extends ItemView {
         
         if (instance.currentStructure === undefined || instance.currentStructure === null) instance.currentStructure = maxStructure;
         if (instance.currentStress === undefined || instance.currentStress === null) instance.currentStress = maxStress;
+        if (instance.currentHeat === undefined || instance.currentHeat === null) instance.currentHeat = 0;
+        
+        let maxHeat = 8; // Default Lancer NPC heat capacity
 
         boxes.push(this.createInteractiveStatBox(grid, "HP", "currentHp", maxHp, currentFile, instance, "var(--color-red, #ff5555)"));
         boxes.push(this.createInteractiveStatBox(grid, "STR", "currentStructure", maxStructure, currentFile, instance, "var(--color-orange, #ff9900)"));
         boxes.push(this.createInteractiveStatBox(grid, "STRS", "currentStress", maxStress, currentFile, instance, "var(--color-yellow, #ffcc00)"));
+        boxes.push(this.createInteractiveStatBox(grid, "HEAT", "currentHeat", maxHeat, currentFile, instance, "var(--color-orange, #ff6600)"));
         
         boxes.push(this.createStatBox(grid, "ARMOR", armorArr[currentTier] || armorArr[0]));
         boxes.push(this.createStatBox(grid, "EVA", evaArr[currentTier] || evaArr[0]));
