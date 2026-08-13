@@ -820,11 +820,10 @@ class LcpImporterFeature {
                     
                     new Notice(`Starte Python-Skript für Daten-Extraktion...`);
                     
-                    // Convert options object to JSON string for CLI
-                    const optionsJson = JSON.stringify(options).replace(/"/g, '\\"');
-                    const command = `python "${pythonScript}" "${tempLcpPath}" "${vaultPath}" "${optionsJson}"`;
+                    const optionsJson = JSON.stringify(options);
                     
-                    exec(command, (error, stdout, stderr) => {
+                    const { execFile } = require('child_process');
+                    execFile('python', [pythonScript, tempLcpPath, vaultPath, optionsJson], (error, stdout, stderr) => {
                         // Clean up temp file
                         if (fs.existsSync(tempLcpPath)) {
                             fs.unlinkSync(tempLcpPath);
@@ -833,7 +832,9 @@ class LcpImporterFeature {
                         if (error) {
                             console.error("Python Error:", error);
                             console.error("Stderr:", stderr);
-                            new Notice(`Fehler im Python-Skript! Details in der Konsole. Code: ${error.code}`);
+                            let errMsg = stderr ? stderr.trim() : error.message;
+                            if (errMsg.length > 100) errMsg = errMsg.substring(0, 100) + "...";
+                            new Notice(`Fehler im Skript: ${errMsg}`);
                             return;
                         }
                         new Notice('Erfolgreich importiert! Neue Notizen wurden erstellt.');
