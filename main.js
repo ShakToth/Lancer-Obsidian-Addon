@@ -1600,50 +1600,23 @@ class EncounterTrackerView extends ItemView {
         // Initialize current HP if null
         if (instance.currentHp === null) instance.currentHp = maxHp;
         
-        // Render Interactive HP Box
-        const hpBox = grid.createEl("div");
-        hpBox.style.border = "1px solid var(--background-modifier-border)";
-        hpBox.style.padding = "4px";
-        hpBox.style.textAlign = "center";
-        hpBox.style.backgroundColor = "var(--background-primary)";
-        hpBox.style.display = "flex";
-        hpBox.style.flexDirection = "column";
-        hpBox.style.justifyContent = "center";
-        hpBox.style.alignItems = "center";
+        let maxStructure = 1;
+        let maxStress = 1;
         
-        const hpValContainer = hpBox.createEl("div");
-        hpValContainer.style.display = "flex";
-        hpValContainer.style.alignItems = "center";
-        hpValContainer.style.justifyContent = "space-between";
-        hpValContainer.style.width = "100%";
+        if (instance.template === "ELITE") {
+            maxStructure = 2;
+            maxStress = 2;
+        } else if (instance.template === "ULTRA") {
+            maxStructure = 1 + (currentTier + 1);
+            maxStress = 1 + (currentTier + 1);
+        }
         
-        const btnMinus = hpValContainer.createEl("button", { text: "-" });
-        btnMinus.style.padding = "0 4px";
-        btnMinus.style.backgroundColor = "transparent";
-        btnMinus.style.border = "none";
-        btnMinus.style.color = "var(--text-muted)";
-        btnMinus.style.cursor = "pointer";
-        btnMinus.onclick = () => { instance.currentHp--; this.updateView(currentFile); };
-        
-        const hpText = hpValContainer.createEl("div", { text: `${instance.currentHp} / ${maxHp}` });
-        hpText.style.fontWeight = "bold";
-        hpText.style.color = "var(--color-red, #ff5555)";
-        hpText.style.fontSize = "1.1em";
-        
-        const btnPlus = hpValContainer.createEl("button", { text: "+" });
-        btnPlus.style.padding = "0 4px";
-        btnPlus.style.backgroundColor = "transparent";
-        btnPlus.style.border = "none";
-        btnPlus.style.color = "var(--text-muted)";
-        btnPlus.style.cursor = "pointer";
-        btnPlus.onclick = () => { instance.currentHp++; this.updateView(currentFile); };
-        
-        const hpLabel = hpBox.createEl("div", { text: "HP" });
-        hpLabel.style.fontSize = "0.7em";
-        hpLabel.style.color = "var(--text-muted)";
-        
-        boxes.push(hpBox); // push dummy for index 0 to align with toggle code if needed, wait, the toggle code modifies boxes[0]!
-        // We will need to update the toggle code to update instance max HP and re-render!
+        if (instance.currentStructure === undefined || instance.currentStructure === null) instance.currentStructure = maxStructure;
+        if (instance.currentStress === undefined || instance.currentStress === null) instance.currentStress = maxStress;
+
+        boxes.push(this.createInteractiveStatBox(grid, "HP", "currentHp", maxHp, currentFile, instance, "var(--color-red, #ff5555)"));
+        boxes.push(this.createInteractiveStatBox(grid, "STR", "currentStructure", maxStructure, currentFile, instance, "var(--color-orange, #ff9900)"));
+        boxes.push(this.createInteractiveStatBox(grid, "STRS", "currentStress", maxStress, currentFile, instance, "var(--color-yellow, #ffcc00)"));
         
         boxes.push(this.createStatBox(grid, "ARMOR", armorArr[currentTier] || armorArr[0]));
         boxes.push(this.createStatBox(grid, "EVA", evaArr[currentTier] || evaArr[0]));
