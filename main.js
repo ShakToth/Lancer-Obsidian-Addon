@@ -1164,6 +1164,16 @@ class EncounterTrackerView extends ItemView {
     async updateView(file) {
         if (!this.contentEl) return;
         
+        // If combat is active, ignore the new file and stick to the locked encounter file
+        if (this.isCombatActive && this.plugin.trackerState.lockedFilePath) {
+            const lockedFile = this.plugin.app.vault.getAbstractFileByPath(this.plugin.trackerState.lockedFilePath);
+            if (lockedFile) {
+                file = lockedFile;
+            }
+        } else if (file) {
+            this.plugin.trackerState.lockedFilePath = file.path;
+        }
+
         this.renderTabNavigation(file);
         this.contentEl.empty();
         
