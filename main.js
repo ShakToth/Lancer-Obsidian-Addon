@@ -574,10 +574,12 @@ class PcImporterFeature {
         let mechName = "Unknown Mech";
         let frameName = "Unknown Frame";
         let hp = 0, armor = 0, evasion = 0, edef = 0, speed = 0, sensor = 0;
+        let structure = 4, stress = 4, heatcap = 0, save = 10;
         let mechWeapons = [];
         let mechSystems = [];
         let pilotWeapons = [];
         let pilotGear = [];
+        let pilotSkills = [];
         
         const formatId = (id) => {
             if (!id) return "Unknown";
@@ -590,8 +592,22 @@ class PcImporterFeature {
         if (pilot.mechs && pilot.mechs.length > 0) {
             const activeMech = pilot.mechs[pilot.active_index || 0] || pilot.mechs[0];
             mechName = activeMech.name || mechName;
+            
             if (activeMech.frameData) {
                 frameName = activeMech.frameData.name || frameName;
+                if (activeMech.frameData.stats) {
+                    const fs = activeMech.frameData.stats;
+                    hp = fs.hp !== undefined ? fs.hp : hp;
+                    armor = fs.armor !== undefined ? fs.armor : armor;
+                    evasion = fs.evasion !== undefined ? fs.evasion : evasion;
+                    edef = fs.edef !== undefined ? fs.edef : edef;
+                    speed = fs.speed !== undefined ? fs.speed : speed;
+                    sensor = fs.sensor_range !== undefined ? fs.sensor_range : sensor;
+                    structure = fs.structure !== undefined ? fs.structure : structure;
+                    stress = fs.stress !== undefined ? fs.stress : stress;
+                    heatcap = fs.heatcap !== undefined ? fs.heatcap : heatcap;
+                    save = fs.save !== undefined ? fs.save : save;
+                }
             } else if (activeMech.frame) {
                 frameName = formatId(activeMech.frame);
             }
@@ -621,23 +637,25 @@ class PcImporterFeature {
             }
         }
         
-        if (pilot.stats && pilot.stats.max) {
-            hp = pilot.stats.max.hp || hp;
-            armor = pilot.stats.max.armor || armor;
-            evasion = pilot.stats.max.evasion || evasion;
-            edef = pilot.stats.max.edef || edef;
-            speed = pilot.stats.max.speed || speed;
-            sensor = pilot.stats.max.sensorRange || 0;
+        // Extract Pilot Loadout correctly from pilot.loadouts
+        if (pilot.loadouts && pilot.loadouts.length > 0) {
+            const ploadout = pilot.loadouts[pilot.active_index || 0] || pilot.loadouts[0];
+            if (ploadout.weapons) {
+                ploadout.weapons.forEach(w => pilotWeapons.push(w.data?.name || formatId(w.id)));
+            }
+            if (ploadout.gear) {
+                ploadout.gear.forEach(g => pilotGear.push(g.data?.name || formatId(g.id)));
+            }
+            if (ploadout.armor) {
+                ploadout.armor.forEach(a => pilotGear.push(a.data?.name || formatId(a.id)));
+            }
         }
 
-        // Extract Pilot Loadout
-        if (pilot.loadout) {
-            if (pilot.loadout.weapons) {
-                pilot.loadout.weapons.forEach(w => pilotWeapons.push(w.data?.name || formatId(w.id)));
-            }
-            if (pilot.loadout.gear) {
-                pilot.loadout.gear.forEach(g => pilotGear.push(g.data?.name || formatId(g.id)));
-            }
+        if (pilot.skills && pilot.skills.length > 0) {
+            pilot.skills.forEach(sk => {
+                const name = sk.data?.name || formatId(sk.id);
+                pilotSkills.push(`${name} (+${sk.rank || 1})`);
+            });
         }
         
         let fallbackContent = `---
@@ -653,6 +671,10 @@ evasion: ${evasion}
 edef: ${edef}
 speed: ${speed}
 sensor: ${sensor}
+structure: ${structure}
+stress: ${stress}
+heatcap: ${heatcap}
+save: ${save}
 ---
 # ${callsign.toUpperCase()} (${pilot.name})
 
@@ -673,23 +695,27 @@ sensor: ${sensor}
             templateText = await this.plugin.app.vault.read(templateFile);
             
             // Merge YAML Frontmatter
-            const yamlRegex = /^---\n([\s\S]*?)\n---/;
+            const yamlRegex = /^---\r?\n([\s\S]*?)\r?\n---/;
             const match = templateText.match(yamlRegex);
             let mergedYaml = `---
 tags:
   - PC
 callsign: "${pilot.callsign}"
 name: "${pilot.name}"
+background: "${pilot.background || ''}"
 hp: ${hp}
 armor: ${armor}
 evasion: ${evasion}
 edef: ${edef}
 speed: ${speed}
 sensor: ${sensor}
+structure: ${structure}
+stress: ${stress}
+heatcap: ${heatcap}
+save: ${save}
 `;
             if (match) {
-                // Keep the template's YAML, just append our stats
-                mergedYaml = `---\n${match[1]}\ncallsign: "${pilot.callsign}"\nname: "${pilot.name}"\nhp: ${hp}\narmor: ${armor}\nevasion: ${evasion}\nedef: ${edef}\nspeed: ${speed}\nsensor: ${sensor}\n---`;
+                mergedYaml = `---\n${match[1]}\ncallsign: "${pilot.callsign}"\nname: "${pilot.name}"\nbackground: "${pilot.background || ''}"\nhp: ${hp}\narmor: ${armor}\nevasion: ${evasion}\nedef: ${edef}\nspeed: ${speed}\nsensor: ${sensor}\nstructure: ${structure}\nstress: ${stress}\nheatcap: ${heatcap}\nsave: ${save}\n---`;
                 templateText = templateText.replace(yamlRegex, mergedYaml);
             } else {
                 templateText = mergedYaml + "---" + "\n" + templateText;
@@ -705,6 +731,10 @@ Evasion: ${evasion}
 E-Defense: ${edef}
 Speed: ${speed}
 Sensor Range: ${sensor}
+Structure: ${structure}
+Stress: ${stress}
+Heat Cap: ${heatcap}
+Save: ${save}
 \`\`\`
 
 ### Mech Loadout
@@ -716,10 +746,13 @@ ${mechSystems.length > 0 ? mechSystems.map(s => `- ${s}`).join("\n") : "- None"}
 
 ### Pilot Loadout
 **Weapons:** ${pilotWeapons.length > 0 ? pilotWeapons.join(", ") : "None"}
-**Gear:** ${pilotGear.length > 0 ? pilotGear.join(", ") : "None"}
+**Gear / Armor:** ${pilotGear.length > 0 ? pilotGear.join(", ") : "None"}
 
-## Licenses & Talents
+## Skills, Licenses & Talents
 `;
+        if (pilotSkills.length > 0) {
+            statsBlock += "**Skills:**\n" + pilotSkills.map(sk => `- ${sk}`).join("\n") + "\n\n";
+        }
         if (pilot.licenses && pilot.licenses.length > 0) {
             statsBlock += "**Licenses:**\n" + pilot.licenses.map(l => `- ${l.stub?.name || formatId(l.id)} (Rank ${l.rank})`).join("\n") + "\n\n";
         }
@@ -732,6 +765,13 @@ ${mechSystems.length > 0 ? mechSystems.map(s => `- ${s}`).join("\n") : "- None"}
             if (activeMech.notes) {
                 statsBlock += `### Mech Notes (${mechName})\n${activeMech.notes}\n\n`;
             }
+            if (activeMech.frameData && activeMech.frameData.traits && activeMech.frameData.traits.length > 0) {
+                statsBlock += `### Frame Traits\n` + activeMech.frameData.traits.map(tr => `- **${tr.name}**: ${tr.description}`).join("\n") + "\n\n";
+            }
+            if (activeMech.frameData && activeMech.frameData.core_system) {
+                const cs = activeMech.frameData.core_system;
+                statsBlock += `### Core System: ${cs.name}\n**Active (${cs.active_name}):** ${cs.active_effect}\n\n`;
+            }
         }
 
         let content = templateText;
@@ -741,9 +781,10 @@ ${mechSystems.length > 0 ? mechSystems.map(s => `- ${s}`).join("\n") : "- None"}
             content += "\n\n" + statsBlock;
         }
         
-        // Also auto-replace {{name}} and {{callsign}} if the template uses them instead of Templater
         content = content.replace(/{{name}}/gi, pilot.name);
         content = content.replace(/{{callsign}}/gi, pilot.callsign);
+        content = content.replace(/{{mechName}}/gi, mechName);
+        content = content.replace(/{{frameName}}/gi, frameName);
 
         const existing = this.plugin.app.metadataCache.getFirstLinkpathDest(filename, "");
         if (existing) {
@@ -1776,8 +1817,8 @@ class EncounterTrackerView extends ItemView {
         // Initialize current HP if null
         if (instance.currentHp === null) instance.currentHp = maxHp;
         
-        let maxStructure = 1;
-        let maxStress = 1;
+        let maxStructure = parseInt(stats.Structure || stats.structure || stats.STR || "1") || 1;
+        let maxStress = parseInt(stats.Stress || stats.stress || stats.STRS || "1") || 1;
         
         if (instance.template === "ELITE") {
             maxStructure = 2;
@@ -1791,7 +1832,7 @@ class EncounterTrackerView extends ItemView {
         if (instance.currentStress === undefined || instance.currentStress === null) instance.currentStress = maxStress;
         if (instance.currentHeat === undefined || instance.currentHeat === null) instance.currentHeat = 0;
         
-        let maxHeat = 8; // Default Lancer NPC heat capacity
+        let maxHeat = parseInt(stats.Heatcap || stats.heatcap || stats['Heat Cap'] || stats.Heat || "8") || 8;
 
         boxes.push(this.createInteractiveStatBox(grid, "HP", "currentHp", maxHp, currentFile, instance, "var(--color-red, #ff5555)"));
         boxes.push(this.createInteractiveStatBox(grid, "STR", "currentStructure", maxStructure, currentFile, instance, "var(--color-orange, #ff9900)"));
