@@ -1559,19 +1559,16 @@ class EncounterTrackerView extends ItemView {
         this.renderTabNavigation(file);
         this.contentEl.empty();
         
-        if (!file) {
-            this.contentEl.createEl("p", { text: "Keine aktive Datei." });
-            return;
-        }
-
-        const cache = this.plugin.app.metadataCache.getFileCache(file);
-        if (!cache || !cache.links) {
-            this.contentEl.createEl("p", { text: "Keine Charaktere in dieser Notiz erwähnt.", cls: "text-muted" });
-            return;
+        let cacheLinks = [];
+        if (file) {
+            const cache = this.plugin.app.metadataCache.getFileCache(file);
+            if (cache && cache.links) {
+                cacheLinks = cache.links;
+            }
         }
 
         const uniqueLinks = new Map();
-        for (let l of cache.links) {
+        for (let l of cacheLinks) {
             const basename = l.link.split('#')[0];
             const hash = l.link.split('#')[1];
             if (!uniqueLinks.has(basename)) {
@@ -1582,14 +1579,15 @@ class EncounterTrackerView extends ItemView {
         let allNpcs = {};
 
         for (let [basename, hash] of uniqueLinks.entries()) {
-            const linkedFile = this.plugin.app.metadataCache.getFirstLinkpathDest(basename, file.path);
+            const linkedFile = this.plugin.app.metadataCache.getFirstLinkpathDest(basename, file ? file.path : "");
             if (!linkedFile) continue;
 
             const linkedCache = this.plugin.app.metadataCache.getFileCache(linkedFile);
             if (!linkedCache || !linkedCache.frontmatter) continue;
 
             const fm = linkedCache.frontmatter;
-            const tags = fm.tags || [];
+            let tags = fm.tags || [];
+            if (typeof tags === 'string') tags = tags.split(/[,\s]+/);
             
             if (hash) {
                 const upperHash = hash.toUpperCase();
@@ -1610,6 +1608,28 @@ class EncounterTrackerView extends ItemView {
                     isCombatMech: hasStats || isClass || isPC,
                     isPC: isPC
                 };
+            }
+        }
+
+        // Always add all PCs from the vault
+        const allFiles = this.plugin.app.vault.getMarkdownFiles();
+        for (let f of allFiles) {
+            const cache = this.plugin.app.metadataCache.getFileCache(f);
+            if (cache && cache.frontmatter) {
+                let tags = cache.frontmatter.tags || [];
+                if (typeof tags === 'string') tags = tags.split(/[,\s]+/);
+                
+                if (tags.includes("PC") || tags.includes("pc")) {
+                    if (!allNpcs[f.basename]) {
+                        allNpcs[f.basename] = {
+                            name: f.basename,
+                            fm: cache.frontmatter,
+                            file: f,
+                            isCombatMech: true,
+                            isPC: true
+                        };
+                    }
+                }
             }
         }
 
