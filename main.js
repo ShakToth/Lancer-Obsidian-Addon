@@ -76,7 +76,7 @@ class GlossaryFeature {
             const textNodes = this.getTextNodes(element);
             const terms = Object.keys(this.glossary);
             const regexStr = "\\b(" + terms.join("|") + ")\\b";
-            const regex = new RegExp(regexStr, "g");
+            const regex = new RegExp(regexStr, "gi");
             
             for (let node of textNodes) {
                 let match;
@@ -92,7 +92,7 @@ class GlossaryFeature {
                     const span = document.createElement("span");
                     span.className = "lancer-tooltip";
                     span.innerText = term;
-                    span.setAttribute("data-tooltip", this.glossary[term]);
+                    span.setAttribute("data-tooltip", this.glossary[term.toUpperCase()]);
                     
                     fragments.push(span);
                     lastIndex = regex.lastIndex;
@@ -1539,7 +1539,14 @@ class EncounterTrackerView extends ItemView {
     async updateView(file) {
         if (!this.contentEl) return;
         
-        // If combat is active, ignore the new file and stick to the locked encounter file
+        let currentScroll = 0;
+        if (this.contentEl.parentElement) {
+            currentScroll = this.contentEl.parentElement.scrollTop || 0;
+        } else {
+            currentScroll = this.contentEl.scrollTop || 0;
+        }
+        
+        // If combat is active, ignore the new file and stick to the locked encounter file, ignore the new file and stick to the locked encounter file
         if (this.isCombatActive && this.plugin.trackerState.lockedFilePath) {
             const lockedFile = this.plugin.app.vault.getAbstractFileByPath(this.plugin.trackerState.lockedFilePath);
             if (lockedFile) {
@@ -1623,6 +1630,14 @@ class EncounterTrackerView extends ItemView {
         } else {
             this.renderInitiativeTab(allNpcs, file);
         }
+        
+        setTimeout(() => {
+            if (this.contentEl && this.contentEl.parentElement) {
+                this.contentEl.parentElement.scrollTop = currentScroll;
+            } else if (this.contentEl) {
+                this.contentEl.scrollTop = currentScroll;
+            }
+        }, 10);
     }
 
     renderRosterTab(allNpcs, currentFile) {
