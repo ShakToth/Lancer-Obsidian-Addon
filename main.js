@@ -1811,6 +1811,11 @@ class EncounterTrackerView extends ItemView {
         card.style.borderRadius = "4px";
         if (isMyTurn) card.style.boxShadow = "0 0 10px rgba(255, 102, 0, 0.2)";
 
+        if (instance.isDead) {
+            card.style.opacity = "0.6";
+            card.style.filter = "grayscale(100%)";
+        }
+
         const controlBar = card.createEl("div");
         controlBar.style.display = "flex";
         controlBar.style.justifyContent = "space-between";
@@ -1854,6 +1859,34 @@ class EncounterTrackerView extends ItemView {
             }
         };
 
+        const btnClone = leftControls.createEl("button", { text: "➕" });
+        btnClone.style.padding = "0px 6px";
+        btnClone.style.fontSize = "0.7em";
+        btnClone.title = "Clone Combatant";
+        btnClone.onclick = () => {
+            const count = this.combatants.filter(c => c.basename === instance.basename).length;
+            const suffix = count > 0 ? " " + String.fromCharCode(65 + count) : "";
+            this.combatants.splice(index + 1, 0, {
+                id: Date.now() + Math.random().toString(36).substring(7),
+                basename: instance.basename,
+                nameSuffix: suffix,
+                currentHp: null,
+                template: instance.template,
+                tier: instance.tier
+            });
+            this.updateView(currentFile);
+        };
+
+        const btnDead = leftControls.createEl("button", { text: "💀" });
+        btnDead.style.padding = "0px 6px";
+        btnDead.style.fontSize = "0.7em";
+        btnDead.title = "Toggle Dead/Defeated";
+        btnDead.style.opacity = instance.isDead ? "1" : "0.5";
+        btnDead.onclick = () => {
+            instance.isDead = !instance.isDead;
+            this.updateView(currentFile);
+        };
+
         const btnRemove = controlBar.createEl("button", { text: "✖" });
         btnRemove.style.padding = "0px 6px";
         btnRemove.style.fontSize = "0.7em";
@@ -1879,6 +1912,9 @@ class EncounterTrackerView extends ItemView {
         title.style.fontWeight = "bold";
         title.style.color = "var(--text-normal)";
         title.style.cursor = "pointer";
+        if (instance.isDead) {
+            title.style.textDecoration = "line-through";
+        }
         title.onclick = () => this.plugin.app.workspace.getLeaf('tab').openFile(baseStats.file);
         
         if (baseStats.isCombatMech) {
