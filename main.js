@@ -635,9 +635,15 @@ class PcImporterFeature {
             }
         }
         
-        // Extract Pilot Loadout correctly from pilot.loadouts
+        // Extract Pilot Loadout correctly from pilot.loadouts or pilot.loadout
+        let ploadout = null;
         if (pilot.loadouts && pilot.loadouts.length > 0) {
-            const ploadout = pilot.loadouts[pilot.active_index || 0] || pilot.loadouts[0];
+            ploadout = pilot.loadouts[pilot.active_index || 0] || pilot.loadouts[0];
+        } else if (pilot.loadout) {
+            ploadout = pilot.loadout;
+        }
+        
+        if (ploadout) {
             if (ploadout.weapons) {
                 ploadout.weapons.forEach(w => pilotWeapons.push(w.data?.name || formatId(w.id)));
             }
@@ -647,6 +653,19 @@ class PcImporterFeature {
             if (ploadout.armor) {
                 ploadout.armor.forEach(a => pilotGear.push(a.data?.name || formatId(a.id)));
             }
+        }
+
+        // Core Bonuses & Mech Skills (HASE)
+        let coreBonuses = [];
+        if (pilot.core_bonuses && pilot.core_bonuses.length > 0) {
+            pilot.core_bonuses.forEach(cb => coreBonuses.push(formatId(cb.id || cb)));
+        }
+        
+        let mechSkillsText = "";
+        if (pilot.mechSkills && pilot.mechSkills.length === 4) {
+            mechSkillsText = `**HASE:** Hull ${pilot.mechSkills[0]} | Agility ${pilot.mechSkills[1]} | Systems ${pilot.mechSkills[2]} | Engineering ${pilot.mechSkills[3]}
+
+`;
         }
 
         if (pilot.skills && pilot.skills.length > 0) {
@@ -748,6 +767,14 @@ ${mechSystems.length > 0 ? mechSystems.map(s => `- ${s}`).join("\n") : "- None"}
 
 ## Skills, Licenses & Talents
 `;
+        if (mechSkillsText) {
+            statsBlock += mechSkillsText;
+        }
+        if (coreBonuses.length > 0) {
+            statsBlock += "**Core Bonuses:**
+" + coreBonuses.map(cb => `- ${cb}`).join("\n") + "\n\n";
+        }
+
         if (pilotSkills.length > 0) {
             statsBlock += "**Skills:**\n" + pilotSkills.map(sk => `- ${sk}`).join("\n") + "\n\n";
         }
