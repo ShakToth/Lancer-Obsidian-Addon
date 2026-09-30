@@ -608,6 +608,28 @@ class PcImporterFeature {
                 }
             } else if (activeMech.frame) {
                 frameName = formatId(activeMech.frame);
+                
+                // Fallback: If COMP/CON didn't include frameData, try to find the frame note in the vault!
+                const frameFile = this.plugin.app.metadataCache.getFirstLinkpathDest(frameName, "");
+                if (frameFile) {
+                    const cache = this.plugin.app.metadataCache.getFileCache(frameFile);
+                    if (cache && cache.frontmatter) {
+                        const fm = cache.frontmatter;
+                        hp = fm.hp !== undefined ? fm.hp : hp;
+                        armor = fm.armor !== undefined ? fm.armor : armor;
+                        evasion = fm.evasion !== undefined ? fm.evasion : evasion;
+                        edef = fm.edef !== undefined ? fm.edef : edef;
+                        speed = fm.speed !== undefined ? fm.speed : speed;
+                        sensor = fm.sensor_range !== undefined ? fm.sensor_range : sensor;
+                        structure = fm.structure !== undefined ? fm.structure : structure;
+                        stress = fm.stress !== undefined ? fm.stress : stress;
+                        heatcap = fm.heatcap !== undefined ? fm.heatcap : heatcap;
+                        save = fm.save !== undefined ? fm.save : save;
+                    }
+                } else if (frameName.toLowerCase().includes("everest")) {
+                    // Hardcoded Everest fallback just in case they haven't imported LCPs
+                    hp = 10; armor = 0; evasion = 8; edef = 8; speed = 4; sensor = 10; heatcap = 6; save = 10;
+                }
             }
             
             // Extract Mech Loadout
