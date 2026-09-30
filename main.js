@@ -771,8 +771,7 @@ ${mechSystems.length > 0 ? mechSystems.map(s => `- ${s}`).join("\n") : "- None"}
             statsBlock += mechSkillsText;
         }
         if (coreBonuses.length > 0) {
-            statsBlock += "**Core Bonuses:**
-" + coreBonuses.map(cb => `- ${cb}`).join("\n") + "\n\n";
+            statsBlock += "**Core Bonuses:**\n" + coreBonuses.map(cb => `- ${cb}`).join("\n") + "\n\n";
         }
 
         if (pilotSkills.length > 0) {
