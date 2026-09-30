@@ -537,21 +537,19 @@ class PcImporterFeature {
                     
                     let pilots = [];
                     if (json.EXPORT_TYPE === "Pilot Group") {
-                        const parsedData = JSON.parse(json.data);
+                        const parsedData = typeof json.data === 'string' ? JSON.parse(json.data) : json.data;
                         pilots = parsedData.pilotData || [];
                     } else if (json.EXPORT_TYPE === "Save Pilot") {
-                        if (typeof json.data === 'string') {
-                            pilots = [JSON.parse(json.data)];
-                        } else {
-                            pilots = [json.data];
-                        }
+                        pilots = [typeof json.data === 'string' ? JSON.parse(json.data) : json.data];
+                    } else if (json.id && (json.callsign !== undefined || json.name !== undefined)) {
+                        pilots = [json];
                     } else {
                         new Notice("Unbekanntes JSON Format.");
                         return;
                     }
                     
                     for (let pilot of pilots) {
-                        if (pilot.itemType === 'pilot') {
+                        if (pilot.itemType === 'pilot' || pilot.callsign !== undefined || pilot.name !== undefined) {
                             await this.createPilotNote(pilot);
                         }
                     }
