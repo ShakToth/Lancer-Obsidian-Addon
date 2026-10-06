@@ -610,11 +610,27 @@ class PcImporterFeature {
                 frameName = formatId(activeMech.frame);
                 
                 // Fallback: If COMP/CON didn't include frameData, try to find the frame note in the vault!
-                const frameFile = this.plugin.app.metadataCache.getFirstLinkpathDest(frameName, "");
+                let frameFile = this.plugin.app.metadataCache.getFirstLinkpathDest(frameName, "");
+                if (!frameFile && activeMech.frame) {
+                    frameFile = this.plugin.app.metadataCache.getFirstLinkpathDest(activeMech.frame, "");
+                }
+                if (!frameFile && activeMech.frame) {
+                    const allMds = this.plugin.app.vault.getMarkdownFiles();
+                    for (const f of allMds) {
+                        if (f.path.includes("Frames/")) {
+                            const c = this.plugin.app.metadataCache.getFileCache(f);
+                            if (c && c.frontmatter && c.frontmatter.id === activeMech.frame) {
+                                frameFile = f;
+                                break;
+                            }
+                        }
+                    }
+                }
                 if (frameFile) {
                     const cache = this.plugin.app.metadataCache.getFileCache(frameFile);
                     if (cache && cache.frontmatter) {
                         const fm = cache.frontmatter;
+                        frameName = fm.name || frameFile.basename;
                         hp = fm.hp !== undefined ? fm.hp : hp;
                         armor = fm.armor !== undefined ? fm.armor : armor;
                         evasion = fm.evasion !== undefined ? fm.evasion : evasion;
@@ -1275,39 +1291,394 @@ class LcpImporterFeature {
                         } else if (fname === "npc_features.json") {
                             // Only imported when needed by classes/templates
                         } else if (options.player_data) {
-                            const data = await readJson(fname);
-                            if (!Array.isArray(data)) continue;
-                            
-                            const category = fname.replace('.json', '');
-                            const capCategory = category.charAt(0).toUpperCase() + category.slice(1);
-                            await ensureDir("00_Regeln/LCP_Data");
-                            await ensureDir("00_Regeln/LCP_Data/" + capCategory);
-                            
-                            for (let item of data) {
-                                if (typeof item !== 'object' || item === null) continue;
-                                const name = item.name || "Unknown";
+                            if (fname === "frames.json") {
+                                const frames = await readJson(fname);
+                                if (!Array.isArray(frames)) continue;
+                                await ensureDir("00_Regeln/LCP_Data/Frames");
                                 
-                                let yamlLines = ["---"];
-                                for (const [k, v] of Object.entries(item)) {
-                                    if (["name", "description", "effect"].includes(k)) continue;
-                                    if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
-                                        yamlLines.push(k + ": " + v);
-                                    } else if (Array.isArray(v) && v.length > 0 && typeof v[0] === 'string') {
-                                        yamlLines.push(k + ": [" + v.join(", ") + "]");
+                                for (let f of frames) {
+                                    if (!f || typeof f !== 'object') continue;
+                                    const name = f.name || "Unknown Frame";
+                                    const id = f.id || "";
+                                    const source = f.source || "";
+                                    const licenseLevel = f.license_level !== undefined ? f.license_level : "";
+                                    const mechtypes = Array.isArray(f.mechtype) ? f.mechtype.join(", ") : (f.mechtype || "");
+                                    const stats = f.stats || {};
+                                    
+                                    const hp = stats.hp ?? 0;
+                                    const armor = stats.armor ?? 0;
+                                    const evasion = stats.evasion ?? 0;
+                                    const edef = stats.edef ?? 0;
+                                    const speed = stats.speed ?? 0;
+                                    const sensor = stats.sensor_range ?? 0;
+                                    const save = stats.save ?? 10;
+                                    const heatcap = stats.heatcap ?? 0;
+                                    const repcap = stats.repcap ?? 0;
+                                    const techAttack = stats.tech_attack ?? 0;
+                                    const sp = stats.sp ?? 0;
+                                    const size = stats.size ?? 1;
+                                    const structure = stats.structure ?? 4;
+                                    const stress = stats.stress ?? 4;
+                                    const mounts = Array.isArray(f.mounts) ? f.mounts : [];
+                                    
+                                    let yamlLines = [
+                                        "---",
+                                        "tags:",
+                                        "  - Mech_Frame",
+                                        `id: "${id}"`,
+                                        `name: "${name}"`
+                                    ];
+                                    if (id) {
+                                        yamlLines.push("aliases:");
+                                        yamlLines.push(`  - "${id}"`);
+                                        const formatted = id.replace(/^(mf_|mw_|ms_|pg_|t_|sk_)/, '').split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                                        if (formatted && formatted !== name && formatted !== id) {
+                                            yamlLines.push(`  - "${formatted}"`);
+                                        }
                                     }
+                                    if (source) yamlLines.push(`source: "${source}"`);
+                                    if (licenseLevel !== "") yamlLines.push(`license_level: ${licenseLevel}`);
+                                    if (mechtypes) yamlLines.push(`mechtype: [${mechtypes}]`);
+                                    yamlLines.push(`size: ${size}`);
+                                    yamlLines.push(`hp: ${hp}`);
+                                    yamlLines.push(`armor: ${armor}`);
+                                    yamlLines.push(`evasion: ${evasion}`);
+                                    yamlLines.push(`edef: ${edef}`);
+                                    yamlLines.push(`speed: ${speed}`);
+                                    yamlLines.push(`sensor_range: ${sensor}`);
+                                    yamlLines.push(`save: ${save}`);
+                                    yamlLines.push(`heatcap: ${heatcap}`);
+                                    yamlLines.push(`repcap: ${repcap}`);
+                                    yamlLines.push(`tech_attack: ${techAttack}`);
+                                    yamlLines.push(`sp: ${sp}`);
+                                    yamlLines.push(`structure: ${structure}`);
+                                    yamlLines.push(`stress: ${stress}`);
+                                    if (mounts.length > 0) {
+                                        yamlLines.push(`mounts: [${mounts.join(", ")}]`);
+                                    }
+                                    yamlLines.push("---");
+                                    
+                                    let md = yamlLines.join("\n") + "\n# " + name + "\n\n";
+                                    const desc = stripHtml(f.description || "");
+                                    if (desc) md += desc + "\n\n";
+                                    
+                                    md += "## Basis-Stats\n```lancer-stats\n";
+                                    md += `HP: ${hp}\nArmor: ${armor}\nEvasion: ${evasion}\nE-Defense: ${edef}\nSpeed: ${speed}\nSensor Range: ${sensor}\nSave Target: ${save}\nHeatcap: ${heatcap}\nTech Attack: ${techAttack}\nSize: ${size}\nRepair Cap: ${repcap}\nSP: ${sp}\n`;
+                                    md += "```\n\n";
+                                    
+                                    if (mounts.length > 0) {
+                                        md += "### Mounts\n";
+                                        md += mounts.map(m => `- ${m}`).join("\n") + "\n\n";
+                                    }
+                                    
+                                    const traits = Array.isArray(f.traits) ? f.traits : [];
+                                    if (traits.length > 0) {
+                                        md += "### Frame Traits\n";
+                                        for (let tr of traits) {
+                                            const trName = tr.name || "Trait";
+                                            const trDesc = stripHtml(tr.description || "");
+                                            md += `#### ${trName}\n${trDesc}\n\n`;
+                                        }
+                                    }
+                                    
+                                    const cs = f.core_system;
+                                    if (cs && typeof cs === 'object') {
+                                        md += `### Core System: ${cs.name || "Core System"}\n`;
+                                        if (cs.description) md += `${stripHtml(cs.description)}\n\n`;
+                                        if (cs.passive_name || cs.passive_effect) {
+                                            md += `**Passive (${cs.passive_name || "Passive"}):** ${stripHtml(cs.passive_effect || "")}\n\n`;
+                                        }
+                                        if (cs.active_name || cs.active_effect) {
+                                            md += `**Active (${cs.active_name || "Active"}):** ${stripHtml(cs.active_effect || "")}\n\n`;
+                                        }
+                                    }
+                                    
+                                    const filePath = "00_Regeln/LCP_Data/Frames/" + safeName(name) + ".md";
+                                    const existing = vault.getAbstractFileByPath(filePath);
+                                    if (existing) { await vault.modify(existing, md); }
+                                    else { await vault.create(filePath, md); }
                                 }
-                                yamlLines.push("---");
+                            } else if (fname === "talents.json") {
+                                const talents = await readJson(fname);
+                                if (!Array.isArray(talents)) continue;
+                                await ensureDir("00_Regeln/LCP_Data/Talents");
                                 
-                                const desc = stripHtml(item.description || "");
-                                const effect = stripHtml(item.effect || "");
-                                let content = yamlLines.join("\n") + "\n# " + name + "\n\n";
-                                if (desc) content += desc + "\n\n";
-                                if (effect) content += "### " + pt_lang.effect + "\n" + effect + "\n";
+                                for (let tItem of talents) {
+                                    if (!tItem || typeof tItem !== 'object') continue;
+                                    const name = tItem.name || "Unknown Talent";
+                                    const id = tItem.id || "";
+                                    
+                                    let yamlLines = [
+                                        "---",
+                                        "tags:",
+                                        "  - Pilot_Talent",
+                                        `id: "${id}"`,
+                                        `name: "${name}"`,
+                                        "---"
+                                    ];
+                                    
+                                    let md = yamlLines.join("\n") + "\n# " + name + "\n\n";
+                                    if (tItem.terse) md += `*${stripHtml(tItem.terse)}*\n\n`;
+                                    if (tItem.description) md += `${stripHtml(tItem.description)}\n\n`;
+                                    
+                                    const ranks = Array.isArray(tItem.ranks) ? tItem.ranks : [];
+                                    if (ranks.length > 0) {
+                                        md += "## Ränge\n\n";
+                                        const roman = ["I", "II", "III", "IV", "V"];
+                                        ranks.forEach((r, idx) => {
+                                            const rNum = roman[idx] || (idx + 1);
+                                            const rName = r.name ? `: ${r.name}` : "";
+                                            md += `### Rank ${rNum}${rName}\n${stripHtml(r.description || "")}\n\n`;
+                                        });
+                                    }
+                                    
+                                    const filePath = "00_Regeln/LCP_Data/Talents/" + safeName(name) + ".md";
+                                    const existing = vault.getAbstractFileByPath(filePath);
+                                    if (existing) { await vault.modify(existing, md); }
+                                    else { await vault.create(filePath, md); }
+                                }
+                            } else if (fname === "bonds.json") {
+                                const bonds = await readJson(fname);
+                                if (!Array.isArray(bonds)) continue;
+                                await ensureDir("00_Regeln/LCP_Data/Bonds");
                                 
-                                const filePath = "00_Regeln/LCP_Data/" + capCategory + "/" + safeName(name) + ".md";
-                                const existing = vault.getAbstractFileByPath(filePath);
-                                if (existing) { await vault.modify(existing, content); }
-                                else { await vault.create(filePath, content); }
+                                for (let b of bonds) {
+                                    if (!b || typeof b !== 'object') continue;
+                                    const name = b.name || "Unknown Bond";
+                                    const id = b.id || "";
+                                    
+                                    let yamlLines = [
+                                        "---",
+                                        "tags:",
+                                        "  - Pilot_Bond",
+                                        `id: "${id}"`,
+                                        `name: "${name}"`,
+                                        "---"
+                                    ];
+                                    
+                                    let md = yamlLines.join("\n") + "\n# " + name + "\n\n";
+                                    if (b.description) md += `${stripHtml(b.description)}\n\n`;
+                                    
+                                    const major = Array.isArray(b.major_ideals) ? b.major_ideals : [];
+                                    const minor = Array.isArray(b.minor_ideals) ? b.minor_ideals : [];
+                                    if (major.length > 0 || minor.length > 0) {
+                                        md += "## Ideals\n";
+                                        if (major.length > 0) {
+                                            md += "### Major Ideals\n" + major.map(i => `- ${stripHtml(i)}`).join("\n") + "\n\n";
+                                        }
+                                        if (minor.length > 0) {
+                                            md += "### Minor Ideals\n" + minor.map(i => `- ${stripHtml(i)}`).join("\n") + "\n\n";
+                                        }
+                                    }
+                                    
+                                    const questions = Array.isArray(b.questions) ? b.questions : [];
+                                    if (questions.length > 0) {
+                                        md += "### Questions\n" + questions.map(q => `- ${stripHtml(q)}`).join("\n") + "\n\n";
+                                    }
+                                    
+                                    const powers = Array.isArray(b.powers) ? b.powers : [];
+                                    if (powers.length > 0) {
+                                        md += "## Powers\n\n";
+                                        for (let p of powers) {
+                                            const pName = p.name || "Power";
+                                            const pFreq = p.frequency ? ` (${p.frequency})` : "";
+                                            md += `### ${pName}${pFreq}\n${stripHtml(p.description || "")}\n\n`;
+                                        }
+                                    }
+                                    
+                                    const filePath = "00_Regeln/LCP_Data/Bonds/" + safeName(name) + ".md";
+                                    const existing = vault.getAbstractFileByPath(filePath);
+                                    if (existing) { await vault.modify(existing, md); }
+                                    else { await vault.create(filePath, md); }
+                                }
+                            } else if (fname === "weapons.json") {
+                                const weapons = await readJson(fname);
+                                if (!Array.isArray(weapons)) continue;
+                                await ensureDir("00_Regeln/LCP_Data/Weapons");
+                                
+                                for (let w of weapons) {
+                                    if (!w || typeof w !== 'object') continue;
+                                    const name = w.name || "Unknown Weapon";
+                                    const id = w.id || "";
+                                    const mount = w.mount || "";
+                                    const type = w.type || "";
+                                    const source = w.source || "";
+                                    const license = w.license || "";
+                                    const licenseLevel = w.license_level !== undefined ? w.license_level : "";
+                                    
+                                    let dmgStrs = [];
+                                    if (Array.isArray(w.damage)) {
+                                        for (let d of w.damage) {
+                                            if (d && (d.val !== undefined || d.damage !== undefined)) {
+                                                const v = d.val !== undefined ? d.val : d.damage;
+                                                dmgStrs.push(`${v} ${d.type || ""}`.trim());
+                                            }
+                                        }
+                                    }
+                                    const dmgText = dmgStrs.length > 0 ? dmgStrs.join(", ") : "None";
+                                    
+                                    let rngStrs = [];
+                                    if (Array.isArray(w.range)) {
+                                        for (let r of w.range) {
+                                            if (r && r.val !== undefined) {
+                                                rngStrs.push(`${r.type || "Range"} ${r.val}`.trim());
+                                            }
+                                        }
+                                    }
+                                    const rngText = rngStrs.length > 0 ? rngStrs.join(", ") : "Melee";
+                                    
+                                    let tagStrs = [];
+                                    if (Array.isArray(w.tags)) {
+                                        for (let tg of w.tags) {
+                                            if (typeof tg === 'string') tagStrs.push(tg);
+                                            else if (tg && tg.id) {
+                                                const tgName = tg.id.replace(/^tg_/, '').replace(/_/g, ' ');
+                                                tagStrs.push(tg.val ? `${tgName} ${tg.val}` : tgName);
+                                            }
+                                        }
+                                    }
+                                    const tagText = tagStrs.length > 0 ? tagStrs.join(", ") : "None";
+                                    
+                                    let yamlLines = [
+                                        "---",
+                                        "tags:",
+                                        "  - Mech_Weapon",
+                                        `id: "${id}"`,
+                                        `name: "${name}"`
+                                    ];
+                                    if (mount) yamlLines.push(`mount: "${mount}"`);
+                                    if (type) yamlLines.push(`type: "${type}"`);
+                                    if (source) yamlLines.push(`source: "${source}"`);
+                                    if (license) yamlLines.push(`license: "${license}"`);
+                                    if (licenseLevel !== "") yamlLines.push(`license_level: ${licenseLevel}`);
+                                    if (dmgText !== "None") yamlLines.push(`damage: "${dmgText}"`);
+                                    if (rngText !== "Melee") yamlLines.push(`range: "${rngText}"`);
+                                    yamlLines.push("---");
+                                    
+                                    let md = yamlLines.join("\n") + "\n# " + name + "\n\n";
+                                    md += `**Mount:** ${mount || 'N/A'} | **Type:** ${type || 'N/A'}`;
+                                    if (license) md += ` | **License:** ${license} ${licenseLevel}`;
+                                    md += "\n\n";
+                                    md += `**Damage:** ${dmgText} | **Range:** ${rngText} | **Tags:** ${tagText}\n\n`;
+                                    
+                                    if (w.on_hit) md += `**On Hit:** ${stripHtml(w.on_hit)}\n\n`;
+                                    
+                                    if (Array.isArray(w.actions) && w.actions.length > 0) {
+                                        for (let act of w.actions) {
+                                            const actName = act.name ? `**${act.name}** ` : "";
+                                            const actFreq = act.frequency ? `(${act.frequency}) ` : "";
+                                            const actType = act.activation ? `[${act.activation}] ` : "";
+                                            md += `${actName}${actType}${actFreq}: ${stripHtml(act.detail || "")}\n\n`;
+                                        }
+                                    }
+                                    
+                                    if (w.effect) md += `### Effect\n${stripHtml(w.effect)}\n\n`;
+                                    if (w.description) md += `*${stripHtml(w.description)}*\n\n`;
+                                    
+                                    const filePath = "00_Regeln/LCP_Data/Weapons/" + safeName(name) + ".md";
+                                    const existing = vault.getAbstractFileByPath(filePath);
+                                    if (existing) { await vault.modify(existing, md); }
+                                    else { await vault.create(filePath, md); }
+                                }
+                            } else if (fname === "systems.json") {
+                                const systems = await readJson(fname);
+                                if (!Array.isArray(systems)) continue;
+                                await ensureDir("00_Regeln/LCP_Data/Systems");
+                                
+                                for (let s of systems) {
+                                    if (!s || typeof s !== 'object') continue;
+                                    const name = s.name || "Unknown System";
+                                    const id = s.id || "";
+                                    const type = s.type || "System";
+                                    const sp = s.sp !== undefined ? s.sp : 0;
+                                    const source = s.source || "";
+                                    const license = s.license || "";
+                                    const licenseLevel = s.license_level !== undefined ? s.license_level : "";
+                                    
+                                    let tagStrs = [];
+                                    if (Array.isArray(s.tags)) {
+                                        for (let tg of s.tags) {
+                                            if (typeof tg === 'string') tagStrs.push(tg);
+                                            else if (tg && tg.id) {
+                                                const tgName = tg.id.replace(/^tg_/, '').replace(/_/g, ' ');
+                                                tagStrs.push(tg.val ? `${tgName} ${tg.val}` : tgName);
+                                            }
+                                        }
+                                    }
+                                    const tagText = tagStrs.length > 0 ? tagStrs.join(", ") : "None";
+                                    
+                                    let yamlLines = [
+                                        "---",
+                                        "tags:",
+                                        "  - Mech_System",
+                                        `id: "${id}"`,
+                                        `name: "${name}"`,
+                                        `type: "${type}"`,
+                                        `sp: ${sp}`
+                                    ];
+                                    if (source) yamlLines.push(`source: "${source}"`);
+                                    if (license) yamlLines.push(`license: "${license}"`);
+                                    if (licenseLevel !== "") yamlLines.push(`license_level: ${licenseLevel}`);
+                                    yamlLines.push("---");
+                                    
+                                    let md = yamlLines.join("\n") + "\n# " + name + "\n\n";
+                                    md += `**SP:** ${sp} | **Type:** ${type}`;
+                                    if (license) md += ` | **License:** ${license} ${licenseLevel}`;
+                                    md += "\n\n";
+                                    if (tagText !== "None") md += `**Tags:** ${tagText}\n\n`;
+                                    
+                                    if (Array.isArray(s.actions) && s.actions.length > 0) {
+                                        for (let act of s.actions) {
+                                            const actName = act.name ? `**${act.name}** ` : "";
+                                            const actFreq = act.frequency ? `(${act.frequency}) ` : "";
+                                            const actType = act.activation ? `[${act.activation}] ` : "";
+                                            md += `${actName}${actType}${actFreq}: ${stripHtml(act.detail || "")}\n\n`;
+                                        }
+                                    }
+                                    
+                                    if (s.effect) md += `### Effect\n${stripHtml(s.effect)}\n\n`;
+                                    if (s.description) md += `*${stripHtml(s.description)}*\n\n`;
+                                    
+                                    const filePath = "00_Regeln/LCP_Data/Systems/" + safeName(name) + ".md";
+                                    const existing = vault.getAbstractFileByPath(filePath);
+                                    if (existing) { await vault.modify(existing, md); }
+                                    else { await vault.create(filePath, md); }
+                                }
+                            } else {
+                                const data = await readJson(fname);
+                                if (!Array.isArray(data)) continue;
+                                
+                                const category = fname.replace('.json', '');
+                                const capCategory = category.charAt(0).toUpperCase() + category.slice(1);
+                                await ensureDir("00_Regeln/LCP_Data");
+                                await ensureDir("00_Regeln/LCP_Data/" + capCategory);
+                                
+                                for (let item of data) {
+                                    if (typeof item !== 'object' || item === null) continue;
+                                    const name = item.name || "Unknown";
+                                    
+                                    let yamlLines = ["---"];
+                                    for (const [k, v] of Object.entries(item)) {
+                                        if (["name", "description", "effect"].includes(k)) continue;
+                                        if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
+                                            yamlLines.push(k + ": " + v);
+                                        } else if (Array.isArray(v) && v.length > 0 && typeof v[0] === 'string') {
+                                            yamlLines.push(k + ": [" + v.join(", ") + "]");
+                                        }
+                                    }
+                                    yamlLines.push("---");
+                                    
+                                    const desc = stripHtml(item.description || "");
+                                    const effect = stripHtml(item.effect || "");
+                                    let md = yamlLines.join("\n") + "\n# " + name + "\n\n";
+                                    if (desc) md += desc + "\n\n";
+                                    if (effect) md += "### " + pt_lang.effect + "\n" + effect + "\n";
+                                    
+                                    const filePath = "00_Regeln/LCP_Data/" + capCategory + "/" + safeName(name) + ".md";
+                                    const existing = vault.getAbstractFileByPath(filePath);
+                                    if (existing) { await vault.modify(existing, md); }
+                                    else { await vault.create(filePath, md); }
+                                }
                             }
                         }
                     }
